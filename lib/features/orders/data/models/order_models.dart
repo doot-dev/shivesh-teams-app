@@ -12,6 +12,13 @@ String _fmtTimeAgo(String? iso) {
   }
 }
 
+/// The four delivery steps a technician moves an order through.
+///
+/// These map onto the backend's `deliveryStatus` enum
+/// (ASSIGNED / IN_TRANSIT / DELIVERED / COMPLETED) via [apiValue] and
+/// [mapDeliveryStatus]. `dispatched` has no distinct server value — it is a
+/// UI-only midpoint that still reports ASSIGNED — so never send a raw
+/// `.name` to the API; always go through [apiValue].
 enum DeliveryStatus { confirmed, dispatched, onTheWay, reached }
 
 extension DeliveryStatusLabel on DeliveryStatus {
@@ -25,6 +32,19 @@ extension DeliveryStatusLabel on DeliveryStatus {
         return 'On the way';
       case DeliveryStatus.reached:
         return 'Reached';
+    }
+  }
+
+  /// The value the backend's `PUT /orders/:id/status` accepts.
+  String get apiValue {
+    switch (this) {
+      case DeliveryStatus.confirmed:
+      case DeliveryStatus.dispatched:
+        return 'ASSIGNED';
+      case DeliveryStatus.onTheWay:
+        return 'IN_TRANSIT';
+      case DeliveryStatus.reached:
+        return 'DELIVERED';
     }
   }
 
@@ -42,7 +62,7 @@ extension DeliveryStatusLabel on DeliveryStatus {
   }
 }
 
-DeliveryStatus _mapDeliveryStatus(String? s) {
+DeliveryStatus mapDeliveryStatus(String? s) {
   switch (s) {
     case 'IN_TRANSIT':
       return DeliveryStatus.onTheWay;
@@ -87,6 +107,7 @@ class TmDetail {
         batchEndTime: json['batchEndTime'] as String? ?? '',
         challanNo: json['challanNo'] as String? ?? '',
         challanUrl: json['challanUrl'] as String?,
+        status: mapDeliveryStatus(json['status'] as String?),
       );
 }
 
@@ -106,6 +127,9 @@ class VendorDetail {
     contactNo: '',
     plantLocation: '',
   );
+
+  bool get isEmpty =>
+      handlerName.isEmpty && contactNo.isEmpty && plantLocation.isEmpty;
 }
 
 class Comment {
@@ -142,12 +166,15 @@ class FieldOrder {
     required this.time,
     required this.location,
     required this.isActive,
+    this.status = '',
     this.deliveryStatus = DeliveryStatus.confirmed,
     this.vendorDetail = VendorDetail.empty,
     this.tmDetails = const [],
     this.comments = const [],
   });
 
+  /// The human order code (e.g. ORD-2025-0001) — this is what every
+  /// `/orders/:orderId` route expects, NOT the cuid primary key.
   final String id;
   final String projectName;
   final String clientName;
@@ -159,21 +186,38 @@ class FieldOrder {
   final String time;
   final String location;
   final bool isActive;
+
+  /// Raw order status (NEW / CONFIRMED / IN_PROGRESS / DELIVERED / ...).
+  final String status;
   final DeliveryStatus deliveryStatus;
   final VendorDetail vendorDetail;
   final List<TmDetail> tmDetails;
   final List<Comment> comments;
 
+  bool get hasVendor => vendor.isNotEmpty;
+
+  /// Parse an order from the tech API.
+  ///
+  /// IMPORTANT — the payload nests vendor info under a `vendors` LIST (an order
+  /// can be split across plants; see buildOrderSelect in the backend's mobile
+  /// orderController). An earlier version of this model read top-level `vendor`
+  /// / `vendorHandler` / `vendorLocation` keys that the API never sends, so the
+  /// vendor name and the entire "Vendor Details" card silently rendered blank.
+  /// Read the first entry of `vendors` instead.
   factory FieldOrder.fromJson(Map<String, dynamic> json) {
     final project = json['project'] as Map<String, dynamic>?;
     final client = json['client'] as Map<String, dynamic>?;
-    final vendorMap = json['vendor'] as Map<String, dynamic>?;
-    final vendorHandler = json['vendorHandler'] as Map<String, dynamic>?;
-    final vendorLocation = json['vendorLocation'] as Map<String, dynamic>?;
-    final tmList = (json['tmDetails'] as List<dynamic>?) ?? [];
-    final commentList = (json['comments'] as List<dynamic>?) ?? [];
 
-    final isActive = json['isActive'] as bool? ?? false;
+    final vendors = (json['vendors'] as List<dynamic>?) ?? const [];
+    final firstVendor =
+        vendors.isNotEmpty ? vendors.first as Map<String, dynamic> : null;
+    final vendorMap = firstVendor?['vendor'] as Map<String, dynamic>?;
+    final vendorHandler = firstVendor?['vendorHandler'] as Map<String, dynamic>?;
+    final vendorLocation =
+        firstVendor?['vendorLocation'] as Map<String, dynamic>?;
+
+    final tmList = (json['tmDetails'] as List<dynamic>?) ?? const [];
+    final commentList = (json['comments'] as List<dynamic>?) ?? const [];
 
     return FieldOrder(
       id: json['orderId'] as String? ?? json['id'] as String? ?? '',
@@ -186,21 +230,28 @@ class FieldOrder {
       date: json['date'] as String? ?? '',
       time: json['time'] as String? ?? '',
       location: project?['projectLocation'] as String? ??
+          project?['siteName'] as String? ??
+          json['deliveryAddress'] as String? ??
           vendorLocation?['address'] as String? ??
           '',
-      isActive: isActive,
-      deliveryStatus: _mapDeliveryStatus(json['deliveryStatus'] as String?),
-      vendorDetail: vendorHandler != null
+      isActive: json['isActive'] as bool? ?? false,
+      status: json['status'] as String? ?? '',
+      deliveryStatus: mapDeliveryStatus(json['deliveryStatus'] as String?),
+      vendorDetail: (vendorHandler != null || vendorLocation != null)
           ? VendorDetail(
-              handlerName: vendorHandler['name'] as String? ?? '',
-              contactNo: vendorHandler['phone'] as String? ?? '',
-              plantLocation: vendorLocation?['address'] as String? ?? '',
+              handlerName: vendorHandler?['name'] as String? ?? '',
+              contactNo: vendorHandler?['phone'] as String? ?? '',
+              plantLocation: vendorLocation?['address'] as String? ??
+                  vendorLocation?['plantName'] as String? ??
+                  '',
             )
           : VendorDetail.empty,
-      tmDetails:
-          tmList.map((t) => TmDetail.fromJson(t as Map<String, dynamic>)).toList(),
-      comments:
-          commentList.map((c) => Comment.fromJson(c as Map<String, dynamic>)).toList(),
+      tmDetails: tmList
+          .map((t) => TmDetail.fromJson(t as Map<String, dynamic>))
+          .toList(),
+      comments: commentList
+          .map((c) => Comment.fromJson(c as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

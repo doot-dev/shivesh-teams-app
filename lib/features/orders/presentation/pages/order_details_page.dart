@@ -151,25 +151,35 @@ class _DetailsTab extends StatelessWidget {
           title: 'Project Summary',
           children: [
             _DetailRow(Icons.business_outlined, 'Project', order.projectName),
+            _DetailRow(Icons.person_outline, 'Client', order.clientName),
             _DetailRow(Icons.inventory_2_outlined, 'Product', order.product),
+            _DetailRow(Icons.workspace_premium_outlined, 'Grade', order.grade),
             _DetailRow(Icons.scale_outlined, 'Quantity', order.quantity),
             _DetailRow(Icons.location_on_outlined, 'Site', order.location,
                 isLast: true),
           ],
         ),
         const SizedBox(height: 16),
+        if (order.isActive) ...[
+          _DeliveryStatusCard(order: order, orderId: orderId),
+          const SizedBox(height: 16),
+        ],
         _SectionCard(
           title: 'Vendor Details',
           children: [
+            _DetailRow(Icons.factory_outlined, 'Vendor',
+                order.vendor.isNotEmpty ? order.vendor : 'Not assigned'),
             _DetailRow(Icons.person_outline_rounded, 'Handler name',
                 order.vendorDetail.handlerName),
             _DetailRow(Icons.phone_outlined, 'Contact no.',
                 order.vendorDetail.contactNo),
-            _DetailRow(Icons.factory_outlined, 'Plant location',
+            _DetailRow(Icons.place_outlined, 'Plant location',
                 order.vendorDetail.plantLocation,
                 isLast: true),
           ],
         ),
+        const SizedBox(height: 16),
+        _CubeTestEntry(orderId: orderId),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -224,6 +234,182 @@ class _DetailsTab extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Lets the technician advance the order's delivery status.
+///
+/// Sends `DeliveryStatus.apiValue` (ASSIGNED / IN_TRANSIT / DELIVERED), never
+/// the Dart enum name — the backend validates against its own enum and rejects
+/// anything else with a 400.
+class _DeliveryStatusCard extends ConsumerStatefulWidget {
+  const _DeliveryStatusCard({required this.order, required this.orderId});
+  final FieldOrder order;
+  final String orderId;
+
+  @override
+  ConsumerState<_DeliveryStatusCard> createState() =>
+      _DeliveryStatusCardState();
+}
+
+class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
+  bool _saving = false;
+
+  Future<void> _update(DeliveryStatus next) async {
+    if (next == widget.order.deliveryStatus) return;
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(techApiProvider)
+          .updateStatus(widget.orderId, next.apiValue);
+      ref.invalidate(orderByIdProvider(widget.orderId));
+      ref.invalidate(activeOrdersProvider);
+      ref.invalidate(pastOrdersProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Status updated to ${next.label}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update status: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final current = widget.order.deliveryStatus;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('Delivery Status',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+              ),
+              if (_saving)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: current.progress,
+              backgroundColor: AppColors.progressTrack,
+              color: AppColors.progressGreen,
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: DeliveryStatus.values.map((s) {
+              final selected = s == current;
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _saving ? null : () => _update(s),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: selected ? AppColors.primary : AppColors.border,
+                    ),
+                  ),
+                  child: Text(
+                    s.label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: selected ? Colors.white : AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Entry point to this order's cube testing reports.
+class _CubeTestEntry extends StatelessWidget {
+  const _CubeTestEntry({required this.orderId});
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => context.push('/orders/$orderId/cube-tests'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF3FF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.science_outlined,
+                  color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Cube Test Reports',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Log casting details and attach results',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textMuted),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -305,11 +491,39 @@ class _TmCard extends ConsumerStatefulWidget {
 class _TmCardState extends ConsumerState<_TmCard> {
   late DeliveryStatus _selectedStatus;
   bool _deleting = false;
+  bool _savingStatus = false;
 
   @override
   void initState() {
     super.initState();
     _selectedStatus = widget.tm.status;
+  }
+
+  /// Persist the TM's status. The dropdown used to only call setState, so the
+  /// technician's choice was lost as soon as the page was rebuilt or reopened.
+  Future<void> _updateStatus(DeliveryStatus next) async {
+    final previous = _selectedStatus;
+    setState(() {
+      _selectedStatus = next;
+      _savingStatus = true;
+    });
+    try {
+      await ref.read(techApiProvider).updateTm(
+            widget.orderId,
+            widget.tm.id,
+            status: next.apiValue,
+          );
+      ref.invalidate(orderByIdProvider(widget.orderId));
+    } catch (e) {
+      if (mounted) {
+        setState(() => _selectedStatus = previous);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update TM status: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingStatus = false);
+    }
   }
 
   Future<void> _deleteTm() async {
@@ -398,17 +612,25 @@ class _TmCardState extends ConsumerState<_TmCard> {
                 value: _selectedStatus,
                 isExpanded: true,
                 underline: const SizedBox.shrink(),
-                icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.textMuted),
+                icon: _savingStatus
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.textMuted),
                 items: DeliveryStatus.values
                     .map((s) => DropdownMenuItem(
                         value: s,
                         child: Text(s.label,
                             style: theme.textTheme.bodySmall)))
                     .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _selectedStatus = v);
-                },
+                onChanged: _savingStatus
+                    ? null
+                    : (v) {
+                        if (v != null) _updateStatus(v);
+                      },
               ),
             ),
           ],

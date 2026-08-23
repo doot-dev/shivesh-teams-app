@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'features/auth/presentation/pages/change_password_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/otp_page.dart';
 import 'features/auth/providers/auth_providers.dart';
 import 'features/common/presentation/pages/splash_page.dart';
 import 'features/common/presentation/widgets/main_scaffold.dart';
+import 'features/cube_test/presentation/pages/add_cube_test_page.dart';
+import 'features/cube_test/presentation/pages/cube_tests_page.dart';
 import 'features/home/presentation/pages/home_page.dart';
 import 'features/notifications/presentation/pages/notifications_page.dart';
 import 'features/orders/presentation/pages/order_details_page.dart';
@@ -16,18 +19,34 @@ import 'features/tm/presentation/pages/add_tm_page.dart';
 
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
-    _ref.listen<AuthState>(authProvider, (prev, _) => notifyListeners());
+    _ref.listen<AuthState>(authProvider, (prev, next) {
+      // Only re-evaluate routing when something route-relevant moved.
+      // Rebuilding on every keystroke-driven isLoading flip would rerun the
+      // redirect mid-login for no reason.
+      if (prev?.isLoggedIn != next.isLoggedIn || prev?.status != next.status) {
+        notifyListeners();
+      }
+    });
   }
 
   final Ref _ref;
 
   String? redirect(BuildContext context, GoRouterState state) {
-    final isLoggedIn = _ref.read(authProvider).isLoggedIn;
+    final auth = _ref.read(authProvider);
     final loc = state.matchedLocation;
-    final isAuthRoute =
-        loc == '/login' || loc == '/otp' || loc == '/splash';
-    if (!isLoggedIn && !isAuthRoute) return '/login';
-    if (isLoggedIn && (loc == '/login' || loc == '/otp')) return '/home';
+
+    // Session restore is still in flight — hold on the splash rather than
+    // bouncing a signed-in technician to /login for a frame.
+    if (auth.isRestoring) return loc == '/splash' ? null : '/splash';
+
+    final isAuthRoute = loc == '/login' || loc == '/otp';
+
+    if (!auth.isLoggedIn) {
+      return isAuthRoute ? null : '/login';
+    }
+
+    // Signed in: never sit on splash or an auth screen.
+    if (isAuthRoute || loc == '/splash') return '/home';
     return null;
   }
 }
@@ -59,6 +78,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const NotificationsPage(),
       ),
       GoRoute(
+        path: '/change-password',
+        builder: (context, state) => const ChangePasswordPage(),
+      ),
+      GoRoute(
         path: '/orders/:id',
         builder: (context, state) =>
             OrderDetailsPage(orderId: state.pathParameters['id']!),
@@ -67,6 +90,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'add-tm',
             builder: (context, state) =>
                 AddTmPage(orderId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'cube-tests',
+            builder: (context, state) =>
+                CubeTestsPage(orderId: state.pathParameters['id']!),
+            routes: [
+              GoRoute(
+                path: 'add',
+                builder: (context, state) =>
+                    AddCubeTestPage(orderId: state.pathParameters['id']!),
+              ),
+            ],
           ),
         ],
       ),

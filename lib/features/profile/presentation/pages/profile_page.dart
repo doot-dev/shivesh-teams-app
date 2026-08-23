@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/providers/auth_providers.dart';
@@ -93,15 +94,18 @@ class ProfilePage extends ConsumerWidget {
               child: Column(
                 children: [
                   InkWell(
-                    onTap: () {},
+                    onTap: () => context.push('/change-password'),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 18),
                       child: Row(
                         children: [
+                          const Icon(Icons.lock_outline_rounded,
+                              size: 20, color: AppColors.textMuted),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Text(
-                              'Reset password',
+                              'Change password',
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ),

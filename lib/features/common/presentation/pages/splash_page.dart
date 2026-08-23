@@ -1,9 +1,13 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 
+/// Brand screen shown while the stored 30-day session is restored.
+///
+/// It deliberately does NOT navigate. The router's redirect holds every route
+/// here while `AuthState.isRestoring` is true and moves on the moment restore
+/// finishes — the old fixed 3-second Timer to `/login` raced that check and
+/// could throw an already-signed-in technician back to the login screen.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -24,19 +28,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     CurvedAnimation(parent: _entranceController, curve: Curves.easeOut),
   );
 
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer(const Duration(seconds: 3), () {
-      if (mounted) context.go('/login');
-    });
-  }
-
   @override
   void dispose() {
-    _timer?.cancel();
     _entranceController.dispose();
     super.dispose();
   }
@@ -82,6 +75,15 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: AppColors.textMuted,
                       letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],

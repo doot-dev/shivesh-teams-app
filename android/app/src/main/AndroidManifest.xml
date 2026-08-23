@@ -1,8 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for all backend API calls. Debug/profile manifests declare this
+         too, but release builds do NOT merge those, so it must live here or the
+         packaged app fails every network request. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="shivesh_field_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"

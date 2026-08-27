@@ -1,11 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_animations.dart';
+import '../../../../core/widgets/app_widgets.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/orders_providers.dart';
+import '../widgets/order_card.dart';
+import '../widgets/order_search_bar.dart';
 
+const _monthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/// Compact label for the active date window, e.g. "24 Aug", "1–5 Aug",
+/// "28 Aug – 3 Sep". Collapses same-day and same-month ranges so the pill
+/// stays narrow on a phone.
+String dateRangeLabel(DateTime? from, DateTime? to) {
+  String short(DateTime d) => '${d.day} ${_monthNames[d.month - 1]}';
+
+  if (from == null && to == null) return 'Date';
+  if (from != null && to != null) {
+    if (from.year == to.year && from.month == to.month && from.day == to.day) {
+      return short(from);
+    }
+    if (from.year == to.year && from.month == to.month) {
+      return '${from.day}–${to.day} ${_monthNames[to.month - 1]}';
+    }
+    return '${short(from)} – ${short(to)}';
+  }
+  if (from != null) return 'From ${short(from)}';
+  return 'Until ${short(to!)}';
+}
+
+/// Full order queue, split into Active and Past, with server-side search.
+///
+/// NOTE: this is a bottom-nav destination, so it deliberately has NO back
+/// button — an earlier version showed one that popped to a blank route.
 class OrdersPage extends ConsumerStatefulWidget {
   const OrdersPage({super.key});
 
@@ -19,245 +51,165 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
       TabController(length: 2, vsync: this);
 
   @override
+  void initState() {
+    super.initState();
+    _tabController.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging || !mounted) return;
+    // Keep the search text when switching tabs — a technician looking for one
+    // client usually wants to check both queues.
+    ref
+        .read(orderFilterProvider.notifier)
+        .setType(_tabController.index == 1 ? 'past' : 'active');
+    setState(() {});
+  }
+
+  @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
 
+  Future<void> _pickDateRange() async {
+    final filter = ref.read(orderFilterProvider);
+    final now = DateTime.now();
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 2, 12, 31),
+      initialDateRange: filter.from != null && filter.to != null
+          ? DateTimeRange(start: filter.from!, end: filter.to!)
+          : null,
+      helpText: 'Filter by delivery date',
+      saveText: 'Apply',
+    );
+
+    if (picked != null && mounted) {
+      ref.read(orderFilterProvider.notifier).setRange(picked.start, picked.end);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final activeOrdersAsync = ref.watch(activeOrdersProvider);
-    final pastOrdersAsync = ref.watch(pastOrdersProvider);
+    final theme = Theme.of(context);
+    final filter = ref.watch(orderFilterProvider);
+    final notifier = ref.read(orderFilterProvider.notifier);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        leading: const BackButton(color: AppColors.textPrimary),
-        title: const Text('Orders'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: TabBar(
-            controller: _tabController,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.textMuted,
-            labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            indicatorColor: AppColors.primary,
-            indicatorWeight: 3,
-            indicatorSize: TabBarIndicatorSize.label,
-            dividerColor: AppColors.border,
-            tabs: const [Tab(text: 'Active'), Tab(text: 'Past')],
-          ),
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          activeOrdersAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
-            data: (orders) => _ActiveOrderList(orders: orders),
-          ),
-          pastOrdersAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
-            data: (orders) => _PastOrderList(orders: orders),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActiveOrderList extends StatelessWidget {
-  const _ActiveOrderList({required this.orders});
-  final List<FieldOrder> orders;
-
-  @override
-  Widget build(BuildContext context) {
-    if (orders.isEmpty) {
-      return Center(
-        child: Text('No active orders',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted)),
-      );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: orders.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, i) => _ActiveOrderCard(order: orders[i]),
-    );
-  }
-}
-
-class _ActiveOrderCard extends StatelessWidget {
-  const _ActiveOrderCard({required this.order});
-  final FieldOrder order;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final progress = order.deliveryStatus.progress;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(order.projectName,
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 2),
-          Text(order.product,
-              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
-          const SizedBox(height: 8),
-          Row(children: [
-            _SmallInfo('Grade', order.grade),
-            const SizedBox(width: 24),
-            _SmallInfo('Quantity', order.quantity),
-          ]),
-          const SizedBox(height: 8),
-          Row(children: [
-            const Icon(Icons.access_time_outlined, size: 14, color: AppColors.textMuted),
-            const SizedBox(width: 4),
-            Text(order.time,
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
-            const SizedBox(width: 16),
-            const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textMuted),
-            const SizedBox(width: 4),
-            Text(order.location,
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
-          ]),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: AppColors.progressTrack,
-              color: AppColors.progressGreen,
-              minHeight: 6,
+          // ---------- Gradient header: title, search, tabs ----------
+          Container(
+            decoration: const BoxDecoration(
+              gradient: AppColors.brandGradient,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(AppRadius.xxl),
+                bottomRight: Radius.circular(AppRadius.xxl),
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _StepLabel('Confirmed'),
-              _StepLabel('Dispatched'),
-              _StepLabel('On the way'),
-              _StepLabel('Reached'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => context.push('/orders/${order.id}'),
-              child: const Text('View details'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PastOrderList extends StatelessWidget {
-  const _PastOrderList({required this.orders});
-  final List<FieldOrder> orders;
-
-  @override
-  Widget build(BuildContext context) {
-    if (orders.isEmpty) {
-      return Center(
-        child: Text('No past orders',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted)),
-      );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: orders.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, i) => _PastOrderCard(order: orders[i]),
-    );
-  }
-}
-
-class _PastOrderCard extends StatelessWidget {
-  const _PastOrderCard({required this.order});
-  final FieldOrder order;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(order.projectName,
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.delivered,
-                  borderRadius: BorderRadius.circular(20),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.gutter,
+                  AppSpacing.lg,
+                  AppSpacing.gutter,
+                  AppSpacing.lg,
                 ),
-                child: Text(
-                  'Delivered',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AppColors.deliveredText,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FadeSlideIn(
+                      child: Text(
+                        'Orders',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 50),
+                      child: OrderSearchBar(
+                        onQueryChanged: notifier.setQuery,
+                        onPickDates: _pickDateRange,
+                        onClearDates: notifier.clearDates,
+                        dateLabel: dateRangeLabel(filter.from, filter.to),
+                        hasDateFilter: filter.hasDate,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    // Pill-style segmented control rather than an underline —
+                    // reads better on the gradient.
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 70),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: TabBar(
+                          controller: _tabController,
+                          labelColor: AppColors.primaryDark,
+                          unselectedLabelColor:
+                              Colors.white.withValues(alpha: 0.85),
+                          labelStyle: theme.textTheme.labelLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                          unselectedLabelStyle: theme.textTheme.labelLarge,
+                          dividerColor: Colors.transparent,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          splashBorderRadius:
+                              BorderRadius.circular(AppRadius.pill),
+                          indicator: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                          tabs: const [
+                            Tab(height: 38, text: 'Active'),
+                            Tab(height: 38, text: 'Past'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            '${order.product}- ${order.grade}(${order.quantity})',
-            style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 4),
-          Row(children: [
-            const Icon(Icons.calendar_today_outlined, size: 13, color: AppColors.textMuted),
-            const SizedBox(width: 4),
-            Text(order.date,
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
-          ]),
-          const SizedBox(height: 2),
-          Row(children: [
-            const Icon(Icons.access_time_outlined, size: 13, color: AppColors.textMuted),
-            const SizedBox(width: 4),
-            Text(order.time,
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
-          ]),
-          const SizedBox(height: 2),
-          Row(children: [
-            const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
-            const SizedBox(width: 4),
-            Text(order.location,
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
-          ]),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => context.push('/orders/${order.id}'),
-              child: const Text('View details'),
+
+          // ---------- Active-filter summary ----------
+          if (filter.isActive)
+            _FilterSummary(
+              filter: filter,
+              onClear: notifier.clear,
+            ),
+
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _OrderListView(
+                  filter: filter.copyWith(type: 'active'),
+                  emptyIcon: Icons.assignment_outlined,
+                  emptyTitle: 'No active orders',
+                  emptyMessage:
+                      'Assignments dispatched to you will show up here.',
+                ),
+                _OrderListView(
+                  filter: filter.copyWith(type: 'past'),
+                  emptyIcon: Icons.history_rounded,
+                  emptyTitle: 'No past orders',
+                  emptyMessage: 'Completed deliveries are archived here.',
+                  showTracker: false,
+                ),
+              ],
             ),
           ),
         ],
@@ -266,38 +218,158 @@ class _PastOrderCard extends StatelessWidget {
   }
 }
 
-class _SmallInfo extends StatelessWidget {
-  const _SmallInfo(this.label, this.value);
-  final String label;
-  final String value;
+/// Thin bar under the header showing what's filtered and a one-tap reset.
+class _FilterSummary extends ConsumerWidget {
+  const _FilterSummary({required this.filter, required this.onClear});
+
+  final OrderFilter filter;
+  final VoidCallback onClear;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted, fontSize: 11)),
-        Text(value,
-            style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-      ],
+    final results = ref.watch(searchedOrdersProvider(filter));
+    final count = results.asData?.value.length;
+
+    final parts = <String>[
+      if (filter.hasQuery) '"${filter.query.trim()}"',
+      if (filter.hasDate) dateRangeLabel(filter.from, filter.to),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        AppSpacing.md,
+        AppSpacing.gutter,
+        0,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              count == null
+                  ? 'Searching ${parts.join(' · ')}'
+                  : '$count result${count == 1 ? '' : 's'} for ${parts.join(' · ')}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          GestureDetector(
+            onTap: onClear,
+            behavior: HitTestBehavior.opaque,
+            child: Text(
+              'Clear',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _StepLabel extends StatelessWidget {
-  const _StepLabel(this.text);
-  final String text;
+/// One tab body. Kept generic so Active and Past cannot drift apart.
+class _OrderListView extends ConsumerWidget {
+  const _OrderListView({
+    required this.filter,
+    required this.emptyIcon,
+    required this.emptyTitle,
+    required this.emptyMessage,
+    this.showTracker = true,
+  });
+
+  final OrderFilter filter;
+  final IconData emptyIcon;
+  final String emptyTitle;
+  final String emptyMessage;
+  final bool showTracker;
+
+  void _refresh(WidgetRef ref) {
+    ref.invalidate(searchedOrdersProvider(filter));
+    // The unfiltered providers back the no-filter case, so refresh those too.
+    if (!filter.isActive) {
+      ref.invalidate(
+        filter.type == 'past' ? pastOrdersProvider : activeOrdersProvider,
+      );
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context)
-          .textTheme
-          .bodySmall
-          ?.copyWith(fontSize: 9, color: AppColors.textMuted),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(searchedOrdersProvider(filter));
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () async {
+        _refresh(ref);
+        await ref
+            .read(searchedOrdersProvider(filter).future)
+            .catchError((_) => <FieldOrder>[]);
+      },
+      child: async.when(
+        loading: () => ListView(
+          padding: const EdgeInsets.all(AppSpacing.gutter),
+          children: const [
+            OrderCardSkeleton(),
+            SizedBox(height: AppSpacing.md),
+            OrderCardSkeleton(),
+            SizedBox(height: AppSpacing.md),
+            OrderCardSkeleton(),
+          ],
+        ),
+        error: (e, _) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            ErrorStateView(
+              message: 'We could not load these orders. Pull down to retry.',
+              onRetry: () => _refresh(ref),
+            ),
+          ],
+        ),
+        data: (orders) {
+          if (orders.isEmpty) {
+            // A search that found nothing is a different situation from an
+            // empty queue, and saying "No active orders" there reads as a bug.
+            final searching = filter.isActive;
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                EmptyState(
+                  icon: searching ? Icons.search_off_rounded : emptyIcon,
+                  title: searching ? 'No matching orders' : emptyTitle,
+                  message: searching
+                      ? 'Try a different name, order number or date.'
+                      : emptyMessage,
+                ),
+              ],
+            );
+          }
+          return ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.gutter,
+              AppSpacing.gutter,
+              AppSpacing.gutter,
+              110,
+            ),
+            itemCount: orders.length,
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+            itemBuilder: (context, i) => StaggeredItem(
+              index: i,
+              child: OrderCard(order: orders[i], showTracker: showTracker),
+            ),
+          );
+        },
+      ),
     );
   }
 }

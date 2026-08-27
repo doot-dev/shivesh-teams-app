@@ -27,10 +27,30 @@ class TechApiService {
   // ─── Orders ────────────────────────────────────────────────────────────────
 
   /// Orders assigned to this technician. [type] is `active` or `past`.
-  Future<List<FieldOrder>> getOrders({String type = 'active'}) async {
+  ///
+  /// [query] is free text matched server-side against the order code, project
+  /// name, client company, product and grade. [dateFrom]/[dateTo] filter by the
+  /// delivery date and MUST be ISO `yyyy-MM-dd` — the backend silently ignores
+  /// any other format rather than erroring, so a wrong format looks like "the
+  /// filter did nothing".
+  ///
+  /// Blank/empty values are omitted entirely so an empty search box behaves
+  /// exactly like no filter at all.
+  Future<List<FieldOrder>> getOrders({
+    String type = 'active',
+    String? query,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
+    final q = query?.trim() ?? '';
     final res = await _dio.get(
       '$_base/orders',
-      queryParameters: {'type': type},
+      queryParameters: {
+        'type': type,
+        if (q.isNotEmpty) 'q': q,
+        if (dateFrom != null && dateFrom.isNotEmpty) 'dateFrom': dateFrom,
+        if (dateTo != null && dateTo.isNotEmpty) 'dateTo': dateTo,
+      },
     );
     final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
     return data

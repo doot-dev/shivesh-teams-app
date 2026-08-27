@@ -4,9 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/tech_api_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_animations.dart';
+import '../../../../core/widgets/app_widgets.dart';
+import '../../../../core/widgets/delivery_tracker.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/orders_providers.dart';
 
+/// Everything the technician needs for one order: spec, delivery status,
+/// vendor, cube tests, TMs, and the comment thread.
 class OrderDetailsPage extends ConsumerStatefulWidget {
   const OrderDetailsPage({super.key, required this.orderId});
   final String orderId;
@@ -51,86 +56,153 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage>
   @override
   Widget build(BuildContext context) {
     final orderAsync = ref.watch(orderByIdProvider(widget.orderId));
+    final theme = Theme.of(context);
 
-    return orderAsync.when(
-      loading: () => Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          leading: const BackButton(color: AppColors.textPrimary),
-          title: const Text('Order Details'),
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          leading: const BackButton(color: AppColors.textPrimary),
-          title: const Text('Order Details'),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Failed to load order',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: AppColors.textMuted)),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.invalidate(orderByIdProvider(widget.orderId)),
-                child: const Text('Retry'),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          // ---------- Gradient header ----------
+          Container(
+            decoration: const BoxDecoration(
+              gradient: AppColors.brandGradient,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(AppRadius.xxl),
+                bottomRight: Radius.circular(AppRadius.xxl),
               ),
-            ],
-          ),
-        ),
-      ),
-      data: (order) {
-        if (order == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Order Details')),
-            body: const Center(child: Text('Order not found')),
-          );
-        }
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(
-            backgroundColor: AppColors.background,
-            leading: const BackButton(color: AppColors.textPrimary),
-            title: const Text('Order Details'),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(48),
-              child: TabBar(
-                controller: _tabController,
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.textMuted,
-                labelStyle:
-                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                indicatorColor: AppColors.primary,
-                indicatorWeight: 3,
-                indicatorSize: TabBarIndicatorSize.label,
-                dividerColor: AppColors.border,
-                tabs: const [Tab(text: 'Details'), Tab(text: 'Comments')],
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.gutter,
+                  AppSpacing.lg,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => context.pop(),
+                          icon: const Icon(Icons.arrow_back_rounded,
+                              color: Colors.white),
+                          tooltip: 'Back',
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Order details',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              orderAsync.when(
+                                data: (o) => Text(
+                                  o?.clientName.isNotEmpty == true
+                                      ? o!.clientName
+                                      : 'Assignment',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.72),
+                                  ),
+                                ),
+                                loading: () => const Padding(
+                                  padding: EdgeInsets.only(top: 3),
+                                  child: ShimmerBox(
+                                    width: 110,
+                                    height: 12,
+                                    onDark: true,
+                                  ),
+                                ),
+                                error: (_, _) => const SizedBox.shrink(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: AppColors.primaryDark,
+                        unselectedLabelColor:
+                            Colors.white.withValues(alpha: 0.85),
+                        labelStyle: theme.textTheme.labelLarge
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                        unselectedLabelStyle: theme.textTheme.labelLarge,
+                        dividerColor: Colors.transparent,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        splashBorderRadius:
+                            BorderRadius.circular(AppRadius.pill),
+                        indicator: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        tabs: const [
+                          Tab(height: 38, text: 'Details'),
+                          Tab(height: 38, text: 'Comments'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _DetailsTab(order: order, orderId: widget.orderId),
-              _CommentsTab(
-                order: order,
-                messageController: _messageController,
-                isSending: _isSending,
-                onSend: _sendComment,
+
+          Expanded(
+            child: orderAsync.when(
+              loading: () => ListView(
+                padding: const EdgeInsets.all(AppSpacing.gutter),
+                children: const [
+                  OrderCardSkeleton(),
+                  SizedBox(height: AppSpacing.md),
+                  OrderCardSkeleton(),
+                ],
               ),
-            ],
+              error: (e, _) => ErrorStateView(
+                message: 'We could not load this order.',
+                onRetry: () =>
+                    ref.invalidate(orderByIdProvider(widget.orderId)),
+              ),
+              data: (order) {
+                if (order == null) {
+                  return const EmptyState(
+                    icon: Icons.search_off_rounded,
+                    title: 'Order not found',
+                    message:
+                        'It may have been reassigned or removed from your queue.',
+                  );
+                }
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _DetailsTab(order: order, orderId: widget.orderId),
+                    _CommentsTab(
+                      order: order,
+                      messageController: _messageController,
+                      isSending: _isSending,
+                      onSend: _sendComment,
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -144,93 +216,159 @@ class _DetailsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    var step = 0;
+
     return ListView(
-      padding: const EdgeInsets.all(20),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        AppSpacing.gutter,
+        AppSpacing.gutter,
+        AppSpacing.xxxl,
+      ),
       children: [
-        _SectionCard(
-          title: 'Project Summary',
-          children: [
-            _DetailRow(Icons.business_outlined, 'Project', order.projectName),
-            _DetailRow(Icons.person_outline, 'Client', order.clientName),
-            _DetailRow(Icons.inventory_2_outlined, 'Product', order.product),
-            _DetailRow(Icons.workspace_premium_outlined, 'Grade', order.grade),
-            _DetailRow(Icons.scale_outlined, 'Quantity', order.quantity),
-            _DetailRow(Icons.location_on_outlined, 'Site', order.location,
-                isLast: true),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (order.isActive) ...[
-          _DeliveryStatusCard(order: order, orderId: orderId),
-          const SizedBox(height: 16),
-        ],
-        _SectionCard(
-          title: 'Vendor Details',
-          children: [
-            _DetailRow(Icons.factory_outlined, 'Vendor',
-                order.vendor.isNotEmpty ? order.vendor : 'Not assigned'),
-            _DetailRow(Icons.person_outline_rounded, 'Handler name',
-                order.vendorDetail.handlerName),
-            _DetailRow(Icons.phone_outlined, 'Contact no.',
-                order.vendorDetail.contactNo),
-            _DetailRow(Icons.place_outlined, 'Plant location',
-                order.vendorDetail.plantLocation,
-                isLast: true),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _CubeTestEntry(orderId: orderId),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+        StaggeredItem(
+          index: step++,
+          child: AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.local_shipping_outlined,
-                    size: 20, color: AppColors.textPrimary),
-                const SizedBox(width: 8),
-                Text(
-                  'TM details',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-              ],
-            ),
-            if (order.isActive)
-              GestureDetector(
-                onTap: () => context.push('/orders/$orderId/add-tm'),
-                child: Row(
+                Row(
                   children: [
-                    const Icon(Icons.add, size: 16, color: AppColors.primary),
-                    Text(
-                      ' TM details',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                    Expanded(
+                      child: Text(
+                        order.projectName.isEmpty
+                            ? 'Untitled project'
+                            : order.projectName,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                    StatusBadge(
+                      label: order.deliveryStatus.label,
+                      tone: order.deliveryStatus == DeliveryStatus.reached
+                          ? BadgeTone.success
+                          : BadgeTone.info,
+                      dense: true,
                     ),
                   ],
                 ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...order.tmDetails.map(
-          (tm) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _TmCard(tm: tm, orderId: orderId, isActive: order.isActive),
+                const SizedBox(height: AppSpacing.sm),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.xs),
+                DetailRow(
+                  icon: Icons.person_outline,
+                  label: 'Client',
+                  value: order.clientName,
+                ),
+                DetailRow(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Product',
+                  value: order.product,
+                ),
+                DetailRow(
+                  icon: Icons.workspace_premium_outlined,
+                  label: 'Grade',
+                  value: order.grade,
+                ),
+                DetailRow(
+                  icon: Icons.scale_outlined,
+                  label: 'Quantity',
+                  value: order.quantity,
+                ),
+                DetailRow(
+                  icon: Icons.event_outlined,
+                  label: 'Schedule',
+                  value: '${order.date}  ·  ${order.time}',
+                ),
+                DetailRow(
+                  icon: Icons.location_on_outlined,
+                  label: 'Site',
+                  value: order.location,
+                ),
+              ],
+            ),
           ),
         ),
+        const SizedBox(height: AppSpacing.md),
+
+        if (order.isActive) ...[
+          StaggeredItem(
+            index: step++,
+            child: _DeliveryStatusCard(order: order, orderId: orderId),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+
+        StaggeredItem(
+          index: step++,
+          child: AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Vendor details', style: theme.textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.xs),
+                DetailRow(
+                  icon: Icons.factory_outlined,
+                  label: 'Vendor',
+                  value: order.vendor.isNotEmpty ? order.vendor : 'Not assigned',
+                ),
+                DetailRow(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Handler name',
+                  value: order.vendorDetail.handlerName,
+                ),
+                DetailRow(
+                  icon: Icons.phone_outlined,
+                  label: 'Contact no.',
+                  value: order.vendorDetail.contactNo,
+                ),
+                DetailRow(
+                  icon: Icons.place_outlined,
+                  label: 'Plant location',
+                  value: order.vendorDetail.plantLocation,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+
+        StaggeredItem(
+          index: step++,
+          child: _CubeTestEntry(orderId: orderId),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+
+        StaggeredItem(
+          index: step++,
+          child: SectionHeader(
+            title: 'TM details',
+            subtitle: '${order.tmDetails.length} transit mixer(s)',
+            actionLabel: order.isActive ? 'Add TM' : null,
+            onAction: order.isActive
+                ? () => context.push('/orders/$orderId/add-tm')
+                : null,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+
         if (order.tmDetails.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('No TM details yet',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.textMuted)),
+          const EmptyState(
+            icon: Icons.local_shipping_outlined,
+            title: 'No TM details yet',
+            message: 'Add a transit mixer to start tracking this delivery.',
+            compact: true,
+          )
+        else
+          ...order.tmDetails.map(
+            (tm) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _TmCard(
+                tm: tm,
+                orderId: orderId,
+                isActive: order.isActive,
+              ),
             ),
           ),
       ],
@@ -287,22 +425,15 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
     final theme = Theme.of(context);
     final current = widget.order.deliveryStatus;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
-                child: Text('Delivery Status',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700)),
+                child: Text('Delivery status',
+                    style: theme.textTheme.titleSmall),
               ),
               if (_saving)
                 const SizedBox(
@@ -312,41 +443,41 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: current.progress,
-              backgroundColor: AppColors.progressTrack,
-              color: AppColors.progressGreen,
-              minHeight: 6,
-            ),
+          const SizedBox(height: AppSpacing.lg),
+          DeliveryTracker(status: current),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Tap to update',
+            style: theme.textTheme.labelSmall
+                ?.copyWith(color: AppColors.textMuted),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
             children: DeliveryStatus.values.map((s) {
               final selected = s == current;
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
+              return PressableScale(
                 onTap: _saving ? null : () => _update(s),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
+                  duration: AppMotion.fast,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.sm + 2,
+                  ),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primary : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    color: selected ? AppColors.primary : AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                     border: Border.all(
                       color: selected ? AppColors.primary : AppColors.border,
                     ),
+                    boxShadow: selected ? AppColors.shadowSm : null,
                   ),
                   child: Text(
                     s.label,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: selected ? Colors.white : AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: selected ? Colors.white : AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -367,110 +498,36 @@ class _CubeTestEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return AppCard(
       onTap: () => context.push('/orders/$orderId/cube-tests'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF3FF),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.science_outlined,
-                  color: AppColors.primary, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Cube Test Reports',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Log casting details and attach results',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: AppColors.textMuted),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.children});
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow(this.icon, this.label, this.value, {this.isLast = false});
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: AppColors.textMuted),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 110,
-            child: Text(label,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textMuted)),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: AppColors.softGradient,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: const Icon(Icons.science_rounded,
+                color: Colors.white, size: 21),
           ),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text(value,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Cube test reports', style: theme.textTheme.titleSmall),
+                const SizedBox(height: 2),
+                Text(
+                  'Log casting details and attach results',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textMuted),
+                ),
+              ],
+            ),
           ),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
         ],
       ),
     );
@@ -526,6 +583,28 @@ class _TmCardState extends ConsumerState<_TmCard> {
     }
   }
 
+  Future<void> _confirmDelete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete TM?'),
+        content: Text('${widget.tm.tmNumber} will be removed from this order.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _deleteTm();
+  }
+
   Future<void> _deleteTm() async {
     setState(() => _deleting = true);
     try {
@@ -546,72 +625,74 @@ class _TmCardState extends ConsumerState<_TmCard> {
     final theme = Theme.of(context);
     final tm = widget.tm;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(tm.tmNumber,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              if (widget.isActive)
-                Row(
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.blue50,
+                  borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+                ),
+                child: const Icon(Icons.local_shipping_rounded,
+                    size: 19, color: AppColors.primary),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined,
-                          size: 18, color: AppColors.textMuted),
-                      onPressed: () {},
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
+                    Text(tm.tmNumber, style: theme.textTheme.titleSmall),
+                    Text(
+                      'Truck ${tm.truckNo}',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textMuted),
                     ),
-                    _deleting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : IconButton(
-                            icon: const Icon(Icons.delete_outline,
-                                size: 18, color: Colors.red),
-                            onPressed: _deleteTm,
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                          ),
                   ],
                 ),
+              ),
+              if (widget.isActive)
+                _deleting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            size: 20, color: AppColors.danger),
+                        onPressed: _confirmDelete,
+                        tooltip: 'Delete TM',
+                        visualDensity: VisualDensity.compact,
+                      ),
             ],
           ),
-          const SizedBox(height: 6),
-          _TmInfo('Truck No: ${tm.truckNo}'),
-          _TmInfo('Qty: ${tm.qty}'),
-          _TmInfo('Batch Start Time: ${tm.batchStartTime}'),
-          _TmInfo('Batch End Time: ${tm.batchEndTime}'),
-          _TmInfo('Challan No: ${tm.challanNo}'),
+          const SizedBox(height: AppSpacing.sm),
+          const Divider(height: 1),
+          DetailRow(label: 'Quantity', value: tm.qty),
+          DetailRow(label: 'Batch start', value: tm.batchStartTime),
+          DetailRow(label: 'Batch end', value: tm.batchEndTime),
+          DetailRow(label: 'Challan no.', value: tm.challanNo),
           if (widget.isActive) ...[
-            const SizedBox(height: 10),
-            Text('Status',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.md),
+            const FieldLabel('Status'),
+            const SizedBox(height: AppSpacing.xs + 2),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: AppColors.border),
               ),
               child: DropdownButton<DeliveryStatus>(
                 value: _selectedStatus,
                 isExpanded: true,
                 underline: const SizedBox.shrink(),
+                borderRadius: BorderRadius.circular(AppRadius.md),
                 icon: _savingStatus
                     ? const SizedBox(
                         width: 16,
@@ -622,9 +703,10 @@ class _TmCardState extends ConsumerState<_TmCard> {
                         color: AppColors.textMuted),
                 items: DeliveryStatus.values
                     .map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s.label,
-                            style: theme.textTheme.bodySmall)))
+                          value: s,
+                          child: Text(s.label,
+                              style: theme.textTheme.bodyMedium),
+                        ))
                     .toList(),
                 onChanged: _savingStatus
                     ? null
@@ -634,33 +716,8 @@ class _TmCardState extends ConsumerState<_TmCard> {
               ),
             ),
           ],
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              child: const Text('View Challan'),
-            ),
-          ),
         ],
       ),
-    );
-  }
-}
-
-class _TmInfo extends StatelessWidget {
-  const _TmInfo(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Text(text,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: AppColors.textMuted)),
     );
   }
 }
@@ -685,24 +742,30 @@ class _CommentsTab extends StatelessWidget {
       children: [
         Expanded(
           child: order.comments.isEmpty
-              ? Center(
-                  child: Text('No comments yet',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: AppColors.textMuted)))
+              ? const EmptyState(
+                  icon: Icons.forum_outlined,
+                  title: 'No comments yet',
+                  message:
+                      'Post an update so the office knows how the delivery '
+                      'is going.',
+                )
               : ListView.separated(
-                  padding: const EdgeInsets.all(20),
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.all(AppSpacing.gutter),
                   itemCount: order.comments.length,
-                  separatorBuilder: (_, i) => const SizedBox(height: 16),
-                  itemBuilder: (context, i) =>
-                      _CommentBubble(comment: order.comments[i]),
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: AppSpacing.lg),
+                  itemBuilder: (context, i) => StaggeredItem(
+                    index: i,
+                    child: _CommentBubble(comment: order.comments[i]),
+                  ),
                 ),
         ),
         _MessageInput(
-            controller: messageController,
-            isSending: isSending,
-            onSend: onSend),
+          controller: messageController,
+          isSending: isSending,
+          onSend: onSend,
+        ),
       ],
     );
   }
@@ -724,46 +787,47 @@ class _CommentBubble extends StatelessWidget {
         Row(
           mainAxisAlignment:
               isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-          children: isMe
-              ? [
-                  Text(comment.timeAgo,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.textMuted, fontSize: 11)),
-                  const SizedBox(width: 6),
-                  Text(comment.author,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(fontWeight: FontWeight.w600, fontSize: 12)),
-                ]
-              : [
-                  Text(comment.author,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(fontWeight: FontWeight.w600, fontSize: 12)),
-                  const SizedBox(width: 6),
-                  Text(comment.timeAgo,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.textMuted, fontSize: 11)),
-                ],
+          children: [
+            Text(
+              isMe ? 'You' : comment.author,
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              comment.timeAgo,
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: AppColors.textMuted),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs + 2),
         Container(
           constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.72),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            maxWidth: MediaQuery.of(context).size.width * 0.74,
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
           decoration: BoxDecoration(
-            color: isMe ? AppColors.primary : Colors.white,
+            gradient: isMe ? AppColors.softGradient : null,
+            color: isMe ? null : AppColors.surface,
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
-              bottomLeft: Radius.circular(isMe ? 16 : 4),
-              bottomRight: Radius.circular(isMe ? 4 : 16),
+              topLeft: const Radius.circular(AppRadius.lg),
+              topRight: const Radius.circular(AppRadius.lg),
+              bottomLeft: Radius.circular(isMe ? AppRadius.lg : 4),
+              bottomRight: Radius.circular(isMe ? 4 : AppRadius.lg),
             ),
             border: isMe ? null : Border.all(color: AppColors.border),
+            boxShadow: AppColors.shadowSm,
           ),
           child: Text(
             comment.message,
-            style: theme.textTheme.bodySmall?.copyWith(
-                color: isMe ? Colors.white : AppColors.textPrimary,
-                height: 1.4),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isMe ? Colors.white : AppColors.textPrimary,
+              height: 1.45,
+            ),
           ),
         ),
       ],
@@ -784,64 +848,77 @@ class _MessageInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.xl,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: 'Post a message...',
-                filled: true,
-                fillColor: AppColors.background,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: AppColors.shadowMd,
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                textCapitalization: TextCapitalization.sentences,
+                onSubmitted: (_) => onSend(),
+                decoration: InputDecoration(
+                  hintText: 'Post a message…',
+                  filled: true,
+                  fillColor: AppColors.background,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xl,
+                    vertical: AppSpacing.md,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                     borderSide: const BorderSide(
-                        color: AppColors.primary, width: 1.2)),
+                      color: AppColors.primary,
+                      width: 1.4,
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: isSending ? null : onSend,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isSending
-                    ? AppColors.primary.withValues(alpha: 0.5)
-                    : AppColors.primary,
-                shape: BoxShape.circle,
+            const SizedBox(width: AppSpacing.sm + 2),
+            PressableScale(
+              onTap: isSending ? null : onSend,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  gradient: isSending ? null : AppColors.softGradient,
+                  color: isSending ? AppColors.blue300 : null,
+                  shape: BoxShape.circle,
+                  boxShadow: AppColors.shadowSm,
+                ),
+                child: isSending
+                    ? const Padding(
+                        padding: EdgeInsets.all(13),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send_rounded,
+                        color: Colors.white, size: 20),
               ),
-              child: isSending
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.send_rounded,
-                      color: Colors.white, size: 20),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -2,10 +2,13 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/providers/tech_api_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_animations.dart';
+import '../../../../core/widgets/app_widgets.dart';
 import '../../data/models/cube_test_model.dart';
 import '../../providers/cube_test_providers.dart';
 
@@ -150,190 +153,341 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        leading: const BackButton(color: AppColors.textPrimary),
-        title: const Text('Add Cube Test'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-          children: [
-            const _SectionHeader('Sample Info'),
-            const SizedBox(height: 14),
-            const _FieldLabel('Casting date'),
-            const SizedBox(height: 6),
-            _PickerField(
-              hint: 'Select casting date',
-              value: _castingDate == null ? null : _dateFmt.format(_castingDate!),
-              icon: Icons.calendar_today_outlined,
-              onTap: _pickCastingDate,
-            ),
-            const SizedBox(height: 16),
-            const _FieldLabel('Quantity'),
-            const SizedBox(height: 6),
-            TextFormField(
-              controller: _quantityController,
-              style: theme.textTheme.bodySmall,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Required' : null,
-              decoration: _inputDecoration('e.g. 6 cubes'),
-            ),
-            const SizedBox(height: 28),
-            const _SectionHeader('Testing Period'),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: CubeTestPeriod.values
-                  .map((p) => _PeriodChip(
-                        label: p.label,
-                        selected: _period == p,
-                        onTap: () => setState(() => _period = p),
-                      ))
-                  .toList(),
-            ),
-            if (_period == CubeTestPeriod.custom) ...[
-              const SizedBox(height: 16),
-              const _FieldLabel('Testing date'),
-              const SizedBox(height: 6),
-              _PickerField(
-                hint: 'Select testing date',
-                value:
-                    _customDate == null ? null : _dateFmt.format(_customDate!),
-                icon: Icons.event_outlined,
-                onTap: _pickCustomDate,
+      body: Column(
+        children: [
+          // ---------- Gradient header ----------
+          Container(
+            decoration: const BoxDecoration(
+              gradient: AppColors.brandGradient,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(AppRadius.xxl),
+                bottomRight: Radius.circular(AppRadius.xxl),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'A custom date records a test that has already happened, so it cannot be in the future.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textMuted, fontSize: 11),
-              ),
-            ],
-            if (testDate != null && _period != CubeTestPeriod.custom) ...[
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF3FF),
-                  borderRadius: BorderRadius.circular(12),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.gutter,
+                  AppSpacing.xl,
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.science_outlined,
-                        size: 18, color: AppColors.primary),
-                    const SizedBox(width: 10),
+                    IconButton(
+                      onPressed: () => context.pop(),
+                      icon: const Icon(Icons.arrow_back_rounded,
+                          color: Colors.white),
+                      tooltip: 'Back',
+                    ),
                     Expanded(
-                      child: Text(
-                        'Testing date: ${_dateFmt.format(testDate)}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Add cube test',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            'Record a cast sample',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.72),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-            const SizedBox(height: 28),
-            const _SectionHeader('Test Report'),
-            const SizedBox(height: 6),
-            Text(
-              'Optional — you can attach the result sheet later.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.textMuted, fontSize: 11),
             ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: _pickFile,
-              child: DottedBorder(
-                color: AppColors.textMuted,
-                strokeWidth: 1.5,
-                dashPattern: const [6, 4],
-                borderType: BorderType.RRect,
-                radius: const Radius.circular(12),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _fileName != null
-                            ? Icons.description_outlined
-                            : Icons.upload_file_outlined,
-                        size: 36,
-                        color: _fileName != null
-                            ? AppColors.primary
-                            : AppColors.textMuted,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        _fileName ?? 'Upload a file',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: _fileName != null
-                              ? AppColors.primary
-                              : AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'supported formats: PDF, JPG, PNG up to 10 MB',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.textMuted,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
+          ),
+
+          Expanded(
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.gutter,
+                  AppSpacing.gutter,
+                  AppSpacing.gutter,
+                  AppSpacing.xxxl,
                 ),
+                children: [
+                  // ---------- Sample info ----------
+                  FadeSlideIn(
+                    child: AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Sample info',
+                              style: theme.textTheme.titleSmall),
+                          const SizedBox(height: AppSpacing.lg),
+                          const FieldLabel('Casting date', required: true),
+                          const SizedBox(height: AppSpacing.xs + 2),
+                          _PickerField(
+                            hint: 'Select casting date',
+                            value: _castingDate == null
+                                ? null
+                                : _dateFmt.format(_castingDate!),
+                            icon: Icons.calendar_today_outlined,
+                            onTap: _pickCastingDate,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          const FieldLabel('Quantity', required: true),
+                          const SizedBox(height: AppSpacing.xs + 2),
+                          TextFormField(
+                            controller: _quantityController,
+                            keyboardType: TextInputType.number,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Enter the number of cubes'
+                                : null,
+                            decoration: const InputDecoration(
+                              hintText: 'e.g. 6 cubes',
+                              prefixIcon: Icon(Icons.scale_outlined, size: 20),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // ---------- Testing period ----------
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 70),
+                    child: AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Testing period',
+                              style: theme.textTheme.titleSmall),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Standard periods calculate the testing date for you.',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          Wrap(
+                            spacing: AppSpacing.sm + 2,
+                            runSpacing: AppSpacing.sm + 2,
+                            children: CubeTestPeriod.values
+                                .map((p) => _PeriodChip(
+                                      label: p.label,
+                                      selected: _period == p,
+                                      onTap: () =>
+                                          setState(() => _period = p),
+                                    ))
+                                .toList(),
+                          ),
+                          if (_period == CubeTestPeriod.custom) ...[
+                            const SizedBox(height: AppSpacing.lg),
+                            const FieldLabel('Testing date', required: true),
+                            const SizedBox(height: AppSpacing.xs + 2),
+                            _PickerField(
+                              hint: 'Select testing date',
+                              value: _customDate == null
+                                  ? null
+                                  : _dateFmt.format(_customDate!),
+                              icon: Icons.event_outlined,
+                              onTap: _pickCustomDate,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              'A custom date records a test that has already '
+                              'happened, so it cannot be in the future.',
+                              style: theme.textTheme.labelSmall
+                                  ?.copyWith(color: AppColors.textMuted),
+                            ),
+                          ],
+                          // Live computed date — reassures the technician the
+                          // app and the server agree before they submit.
+                          AnimatedSize(
+                            duration: AppMotion.mid,
+                            curve: AppMotion.ease,
+                            child:
+                                testDate != null &&
+                                        _period != CubeTestPeriod.custom
+                                    ? Padding(
+                                        padding: const EdgeInsets.only(
+                                            top: AppSpacing.lg),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: AppSpacing.md + 2,
+                                            vertical: AppSpacing.md,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.blue50,
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    AppRadius.md),
+                                            border: Border.all(
+                                                color: AppColors.blue100),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                  Icons.event_available_rounded,
+                                                  size: 18,
+                                                  color: AppColors.primary),
+                                              const SizedBox(
+                                                  width: AppSpacing.sm + 2),
+                                              Expanded(
+                                                child: Text(
+                                                  'Testing date: '
+                                                  '${_dateFmt.format(testDate)}',
+                                                  style: theme
+                                                      .textTheme.bodySmall
+                                                      ?.copyWith(
+                                                    color: AppColors.primary,
+                                                    fontWeight:
+                                                        FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      )
+                                    : const SizedBox(width: double.infinity),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // ---------- Report upload ----------
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 140),
+                    child: AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Test report',
+                              style: theme.textTheme.titleSmall),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Optional — you can attach the result sheet later.',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          PressableScale(
+                            onTap: _pickFile,
+                            child: DottedBorder(
+                              color: _fileName != null
+                                  ? AppColors.primary
+                                  : AppColors.borderStrong,
+                              strokeWidth: 1.5,
+                              dashPattern: const [6, 4],
+                              borderType: BorderType.RRect,
+                              radius: const Radius.circular(AppRadius.lg),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: AppSpacing.xxxl),
+                                decoration: BoxDecoration(
+                                  color: _fileName != null
+                                      ? AppColors.blue50
+                                      : Colors.transparent,
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.lg),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 52,
+                                      height: 52,
+                                      decoration: BoxDecoration(
+                                        color: _fileName != null
+                                            ? AppColors.primary
+                                            : AppColors.blue50,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        _fileName != null
+                                            ? Icons.description_rounded
+                                            : Icons.cloud_upload_outlined,
+                                        size: 24,
+                                        color: _fileName != null
+                                            ? Colors.white
+                                            : AppColors.blue400,
+                                      ),
+                                    ),
+                                    const SizedBox(height: AppSpacing.md),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: AppSpacing.lg),
+                                      child: Text(
+                                        _fileName ?? 'Upload a file',
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: _fileName != null
+                                              ? AppColors.primary
+                                              : AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'PDF, JPG or PNG up to 10 MB',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                              color: AppColors.textMuted),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 200),
+                    child: SizedBox(
+                      height: 54,
+                      child: ElevatedButton.icon(
+                        onPressed: _isSubmitting ? null : _submit,
+                        icon: _isSubmitting
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.check_rounded, size: 20),
+                        label: Text(
+                            _isSubmitting ? 'Submitting…' : 'Submit report'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 36),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Submit'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
-
-InputDecoration _inputDecoration(String hint) => InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-      ),
-    );
 
 class _PeriodChip extends StatelessWidget {
   const _PeriodChip({
@@ -347,24 +501,27 @@ class _PeriodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return PressableScale(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        duration: AppMotion.fast,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.md,
+        ),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          color: selected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
           ),
+          boxShadow: selected ? AppColors.shadowSm : null,
         ),
         child: Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: selected ? Colors.white : AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: selected ? Colors.white : AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
               ),
         ),
       ),
@@ -386,64 +543,43 @@ class _PickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    final theme = Theme.of(context);
+    final filled = value != null;
+
+    return PressableScale(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.lg,
+        ),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: filled ? AppColors.blue200 : AppColors.border,
+          ),
         ),
         child: Row(
           children: [
+            Icon(icon, size: 19,
+                color: filled ? AppColors.primary : AppColors.textMuted),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
                 value ?? hint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: value != null
-                          ? AppColors.textPrimary
-                          : AppColors.textMuted,
-                    ),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color:
+                      filled ? AppColors.textPrimary : AppColors.textMuted,
+                  fontWeight: filled ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
             ),
-            Icon(icon, size: 20, color: AppColors.textMuted),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                size: 20, color: AppColors.textMuted),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context)
-          .textTheme
-          .titleMedium
-          ?.copyWith(fontWeight: FontWeight.w700),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context)
-          .textTheme
-          .bodySmall
-          ?.copyWith(color: AppColors.textMuted),
     );
   }
 }

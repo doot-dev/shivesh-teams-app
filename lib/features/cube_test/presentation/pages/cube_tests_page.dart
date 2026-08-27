@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/tech_api_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_animations.dart';
+import '../../../../core/widgets/app_widgets.dart';
 import '../../data/models/cube_test_model.dart';
 import '../../providers/cube_test_providers.dart';
 
@@ -15,43 +17,149 @@ class CubeTestsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final testsAsync = ref.watch(cubeTestsProvider(orderId));
+    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        leading: const BackButton(color: AppColors.textPrimary),
-        title: const Text('Cube Test Reports'),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await context.push('/orders/$orderId/cube-tests/add');
           ref.invalidate(cubeTestsProvider(orderId));
         },
         backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add test', style: TextStyle(color: Colors.white)),
+        foregroundColor: Colors.white,
+        elevation: 3,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Add test'),
       ),
-      body: testsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorState(
-          onRetry: () => ref.invalidate(cubeTestsProvider(orderId)),
-        ),
-        data: (tests) {
-          if (tests.isEmpty) return const _EmptyState();
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(cubeTestsProvider(orderId)),
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
-              itemCount: tests.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, i) => _CubeTestCard(
-                test: tests[i],
-                orderId: orderId,
+      body: Column(
+        children: [
+          // ---------- Gradient header ----------
+          Container(
+            decoration: const BoxDecoration(
+              gradient: AppColors.brandGradient,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(AppRadius.xxl),
+                bottomRight: Radius.circular(AppRadius.xxl),
               ),
             ),
-          );
-        },
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.gutter,
+                  AppSpacing.xl,
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => context.pop(),
+                      icon: const Icon(Icons.arrow_back_rounded,
+                          color: Colors.white),
+                      tooltip: 'Back',
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Cube test reports',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            testsAsync.when(
+                              data: (t) => t.isEmpty
+                                  ? 'No samples logged'
+                                  : '${t.length} sample(s) logged',
+                              loading: () => 'Loading…',
+                              error: (_, _) => 'Could not load',
+                            ),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.72),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.science_rounded,
+                          color: Colors.white, size: 21),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: testsAsync.when(
+              loading: () => ListView(
+                padding: const EdgeInsets.all(AppSpacing.gutter),
+                children: const [
+                  OrderCardSkeleton(),
+                  SizedBox(height: AppSpacing.md),
+                  OrderCardSkeleton(),
+                ],
+              ),
+              error: (e, _) => ErrorStateView(
+                message: 'We could not load the cube tests for this order.',
+                onRetry: () => ref.invalidate(cubeTestsProvider(orderId)),
+              ),
+              data: (tests) {
+                if (tests.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.science_outlined,
+                    title: 'No cube tests yet',
+                    message:
+                        'Log a cube test when a sample is cast, then attach '
+                        'the result sheet once it has been tested.',
+                  );
+                }
+                return RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {
+                    ref.invalidate(cubeTestsProvider(orderId));
+                    await ref
+                        .read(cubeTestsProvider(orderId).future)
+                        .catchError((_) => <CubeTest>[]);
+                  },
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.gutter,
+                      AppSpacing.gutter,
+                      AppSpacing.gutter,
+                      96,
+                    ),
+                    itemCount: tests.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.md),
+                    itemBuilder: (context, i) => StaggeredItem(
+                      index: i,
+                      child: _CubeTestCard(
+                        test: tests[i],
+                        orderId: orderId,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -82,7 +190,8 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -110,27 +219,33 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
     final theme = Theme.of(context);
     final t = widget.test;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.blue50,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: const Icon(Icons.science_rounded,
+                    size: 20, color: AppColors.primary),
+              ),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Text(
-                  t.period.label,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t.period.label, style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 3),
+                    _DueChip(test: t),
+                  ],
                 ),
               ),
-              _DueChip(test: t),
-              const SizedBox(width: 4),
               _deleting
                   ? const SizedBox(
                       width: 18,
@@ -138,40 +253,64 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : IconButton(
-                      icon: const Icon(Icons.delete_outline,
-                          size: 18, color: Colors.red),
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          size: 20, color: AppColors.danger),
                       onPressed: _delete,
+                      tooltip: 'Delete report',
                       visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
                     ),
             ],
           ),
-          const SizedBox(height: 10),
-          _Row(Icons.event_outlined, 'Casting date', t.castingDateLabel),
-          _Row(Icons.science_outlined, 'Testing date', t.testDateLabel),
-          _Row(Icons.scale_outlined, 'Quantity', t.quantity, isLast: true),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(
-                t.hasFile
-                    ? Icons.description_outlined
-                    : Icons.file_upload_outlined,
-                size: 16,
-                color: t.hasFile ? AppColors.primary : AppColors.textMuted,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  t.hasFile ? 'Report attached' : 'No report attached yet',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: t.hasFile ? AppColors.primary : AppColors.textMuted,
-                    fontWeight:
-                        t.hasFile ? FontWeight.w600 : FontWeight.normal,
+          const SizedBox(height: AppSpacing.sm),
+          const Divider(height: 1),
+          DetailRow(
+            icon: Icons.event_outlined,
+            label: 'Casting date',
+            value: t.castingDateLabel,
+          ),
+          DetailRow(
+            icon: Icons.science_outlined,
+            label: 'Testing date',
+            value: t.testDateLabel,
+          ),
+          DetailRow(
+            icon: Icons.scale_outlined,
+            label: 'Quantity',
+            value: t.quantity,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm + 2,
+            ),
+            decoration: BoxDecoration(
+              color: t.hasFile ? AppColors.blue50 : AppColors.background,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  t.hasFile
+                      ? Icons.description_rounded
+                      : Icons.file_upload_outlined,
+                  size: 17,
+                  color: t.hasFile ? AppColors.primary : AppColors.textMuted,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    t.hasFile ? 'Report attached' : 'No report attached yet',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color:
+                          t.hasFile ? AppColors.primary : AppColors.textMuted,
+                      fontWeight:
+                          t.hasFile ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -187,125 +326,25 @@ class _DueChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = test.daysUntilDue;
-    late final String text;
-    late final Color bg;
-    late final Color fg;
 
     if (days > 0) {
-      text = 'in $days day${days == 1 ? '' : 's'}';
-      bg = const Color(0xFFEFF3FF);
-      fg = AppColors.primary;
-    } else if (days == 0) {
-      text = 'Due today';
-      bg = const Color(0xFFFFF3E0);
-      fg = const Color(0xFFB26A00);
-    } else {
-      text = 'Tested';
-      bg = const Color(0xFFE6F4EA);
-      fg = const Color(0xFF1B7F3B);
+      return StatusBadge(
+        label: 'in $days day${days == 1 ? '' : 's'}',
+        tone: BadgeTone.info,
+        dense: true,
+      );
     }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        text,
-        style: Theme.of(context)
-            .textTheme
-            .labelSmall
-            ?.copyWith(color: fg, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-class _Row extends StatelessWidget {
-  const _Row(this.icon, this.label, this.value, {this.isLast = false});
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.textMuted),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 110,
-            child: Text(label,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textMuted)),
-          ),
-          Expanded(
-            child: Text(value,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.science_outlined,
-                size: 48, color: AppColors.textMuted),
-            const SizedBox(height: 16),
-            Text('No cube tests yet',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            Text(
-              'Log a cube test when a sample is cast, then attach the result sheet once it has been tested.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Failed to load cube tests',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.textMuted)),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
-        ],
-      ),
+    if (days == 0) {
+      return const StatusBadge(
+        label: 'Due today',
+        tone: BadgeTone.warning,
+        dense: true,
+      );
+    }
+    return const StatusBadge(
+      label: 'Tested',
+      tone: BadgeTone.success,
+      dense: true,
     );
   }
 }

@@ -3,6 +3,10 @@
          too, but release builds do NOT merge those, so it must live here or the
          packaged app fails every network request. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ (API 33) requires this to be DECLARED before the runtime
+         prompt will even appear. Without it requestPermission() resolves as
+         denied and no assignment/order notification is ever shown. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="Shivesh Team"

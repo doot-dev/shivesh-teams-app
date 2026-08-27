@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pinput/pinput.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/brand_mark.dart';
 import '../../providers/auth_providers.dart';
 
 class OtpPage extends ConsumerStatefulWidget {
@@ -103,21 +104,7 @@ class _OtpPageState extends ConsumerState<OtpPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset('assets/logo/logo.png', height: 72),
-                  const SizedBox(height: 8),
-                  Text(
-                    'SHIVESH',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  Text(
-                    'Group of Companies',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white70),
-                  ),
+                  const BrandMark(logoSize: 64, compact: true),
                 ],
               ),
             ),

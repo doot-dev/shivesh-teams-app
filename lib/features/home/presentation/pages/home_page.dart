@@ -3,383 +3,335 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_animations.dart';
+import '../../../../core/widgets/app_widgets.dart';
 import '../../../orders/data/models/order_models.dart';
+import '../../../orders/presentation/widgets/order_card.dart';
 import '../../../orders/providers/orders_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
 
+/// The technician's landing screen: a blue gradient hero with live counts,
+/// today's assignment, then the rest of the active queue.
+///
+/// The hero deliberately extends BEHIND the status bar (no top SafeArea) so the
+/// gradient bleeds to the top edge; the inner padding restores the safe inset.
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(technicianProfileProvider);
     final todayOrderAsync = ref.watch(todayOrderProvider);
     final activeOrdersAsync = ref.watch(activeOrdersProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(activeOrdersProvider);
-            ref.invalidate(technicianProfileProvider);
-          },
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async {
+          ref.invalidate(activeOrdersProvider);
+          ref.invalidate(technicianProfileProvider);
+          await ref.read(activeOrdersProvider.future).catchError(
+                (_) => <FieldOrder>[],
+              );
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          slivers: [
+            const SliverToBoxAdapter(child: _HomeHero()),
+
+            // ---------- Today's order ----------
+            ...todayOrderAsync.when(
+              data: (order) => order == null
+                  ? const <Widget>[]
+                  : <Widget>[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.gutter,
+                            AppSpacing.xxl,
+                            AppSpacing.gutter,
+                            AppSpacing.md,
+                          ),
+                          child: FadeSlideIn(
+                            delay: const Duration(milliseconds: 90),
+                            child: Row(
+                              children: [
+                                const PulsingDot(color: AppColors.success),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: SectionHeader(
+                                    title: "Today's order",
+                                    subtitle: 'Your next delivery',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.gutter,
+                          ),
+                          child: FadeSlideIn(
+                            delay: const Duration(milliseconds: 140),
+                            child: OrderCard(order: order, highlight: true),
+                          ),
+                        ),
+                      ),
+                    ],
+              loading: () => const <Widget>[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.gutter,
+                      AppSpacing.xxl,
+                      AppSpacing.gutter,
+                      0,
+                    ),
+                    child: OrderCardSkeleton(),
+                  ),
+                ),
+              ],
+              error: (_, _) => const <Widget>[],
+            ),
+
+            // ---------- Active queue ----------
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.gutter,
+                  AppSpacing.xxl,
+                  AppSpacing.gutter,
+                  AppSpacing.sm,
+                ),
+                child: FadeSlideIn(
+                  delay: const Duration(milliseconds: 190),
+                  child: SectionHeader(
+                    title: 'Active orders',
+                    actionLabel: 'View all',
+                    onAction: () => context.go('/orders'),
+                  ),
+                ),
+              ),
+            ),
+
+            activeOrdersAsync.when(
+              loading: () => const SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.gutter,
+                  ),
+                  child: Column(
                     children: [
-                      Column(
+                      OrderCardSkeleton(),
+                      SizedBox(height: AppSpacing.md),
+                      OrderCardSkeleton(),
+                    ],
+                  ),
+                ),
+              ),
+              error: (e, _) => SliverToBoxAdapter(
+                child: ErrorStateView(
+                  message: 'We could not load your orders. Pull to refresh or '
+                      'try again.',
+                  compact: true,
+                  onRetry: () => ref.invalidate(activeOrdersProvider),
+                ),
+              ),
+              data: (orders) {
+                if (orders.isEmpty) {
+                  return const SliverToBoxAdapter(
+                    child: EmptyState(
+                      icon: Icons.inbox_rounded,
+                      title: 'No active orders',
+                      message:
+                          'New assignments will appear here as soon as they '
+                          'are dispatched to you.',
+                      compact: true,
+                    ),
+                  );
+                }
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) => Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.gutter,
+                        0,
+                        AppSpacing.gutter,
+                        AppSpacing.md,
+                      ),
+                      child: StaggeredItem(
+                        index: i,
+                        child: OrderCard(order: orders[i], showTracker: false),
+                      ),
+                    ),
+                    childCount: orders.length,
+                  ),
+                );
+              },
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 110)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Gradient header: greeting, notification bell, and three live counters.
+class _HomeHero extends ConsumerWidget {
+  const _HomeHero();
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final profileAsync = ref.watch(technicianProfileProvider);
+    final activeOrdersAsync = ref.watch(activeOrdersProvider);
+    // Riverpod 3.x: `valueOrNull` no longer exists — `.value` is the nullable one.
+    final orders = activeOrdersAsync.value ?? const <FieldOrder>[];
+
+    final inTransit = orders
+        .where((o) =>
+            o.deliveryStatus == DeliveryStatus.onTheWay ||
+            o.deliveryStatus == DeliveryStatus.dispatched)
+        .length;
+    final reached = orders
+        .where((o) => o.deliveryStatus == DeliveryStatus.reached)
+        .length;
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppColors.brandGradient,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(AppRadius.xxl),
+          bottomRight: Radius.circular(AppRadius.xxl),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.gutter,
+            AppSpacing.lg,
+            AppSpacing.gutter,
+            AppSpacing.xxl,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: FadeSlideIn(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Hi,',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
+                            _greeting,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.72),
                             ),
                           ),
+                          const SizedBox(height: 2),
                           profileAsync.when(
                             data: (p) => Text(
-                              p.name,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
+                              p.name.isEmpty ? 'Technician' : p.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                            loading: () => const SizedBox(
-                              height: 20,
-                              width: 100,
-                              child: LinearProgressIndicator(),
+                            loading: () => const ShimmerBox(
+                              width: 160,
+                              height: 26,
+                              onDark: true,
                             ),
-                            error: (e, _) => const Text('Tech'),
+                            error: (_, _) => Text(
+                              'Technician',
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      GestureDetector(
-                        onTap: () => context.push('/notifications'),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: const Icon(
-                            Icons.notifications_outlined,
-                            size: 20,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Today's order
-              ...todayOrderAsync.when(
-                data: (order) => order == null
-                    ? []
-                    : [
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                            child: Text(
-                              "Today's Order",
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                            child: _TodayOrderCard(order: order),
-                          ),
-                        ),
-                      ],
-                loading: () => [],
-                error: (e, _) => [],
-              ),
-
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Active Orders',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => context.go('/orders'),
-                        child: Text(
-                          'View all',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              activeOrdersAsync.when(
-                loading: () => const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                ),
-                error: (e, _) => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      'Failed to load orders',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: AppColors.textMuted),
                     ),
                   ),
-                ),
-                data: (orders) => orders.isEmpty
-                    ? SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                          child: Text(
-                            'No active orders',
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(color: AppColors.textMuted),
+                  const SizedBox(width: AppSpacing.md),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 60),
+                    child: PressableScale(
+                      onTap: () => context.push('/notifications'),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.22),
                           ),
                         ),
-                      )
-                    : SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, i) => Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                            child: _ActiveOrderCard(order: orders[i]),
-                          ),
-                          childCount: orders.length,
+                        child: const Icon(
+                          Icons.notifications_none_rounded,
+                          size: 21,
+                          color: Colors.white,
                         ),
                       ),
+                    ),
+                  ),
+                ],
               ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TodayOrderCard extends StatelessWidget {
-  const _TodayOrderCard({required this.order});
-  final FieldOrder order;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            order.projectName,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          _InfoRow('Client Name:', order.clientName),
-          _InfoRow('Vendor:', order.vendor.isNotEmpty ? order.vendor : 'TBD'),
-          _InfoRow('Quantity:', order.quantity),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Text(
-                'Date: ${order.date}',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textMuted),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                'Time: ${order.time}',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textMuted),
+              const SizedBox(height: AppSpacing.xl),
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 110),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: StatTile(
+                        label: 'Active',
+                        value: orders.length,
+                        icon: Icons.assignment_outlined,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: StatTile(
+                        label: 'In transit',
+                        value: inTransit,
+                        icon: Icons.local_shipping_outlined,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: StatTile(
+                        label: 'Reached',
+                        value: reached,
+                        icon: Icons.task_alt_rounded,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow(this.label, this.value);
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: RichText(
-        text: TextSpan(
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: AppColors.textMuted),
-          children: [
-            TextSpan(text: '$label '),
-            TextSpan(
-              text: value,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
         ),
       ),
-    );
-  }
-}
-
-class _ActiveOrderCard extends StatelessWidget {
-  const _ActiveOrderCard({required this.order});
-  final FieldOrder order;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final progress = order.deliveryStatus.progress;
-
-    return GestureDetector(
-      onTap: () => context.push('/orders/${order.id}'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              order.projectName,
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              order.product,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _SmallInfo('Grade', order.grade),
-                const SizedBox(width: 24),
-                _SmallInfo('Quantity', order.quantity),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.access_time_outlined,
-                    size: 14, color: AppColors.textMuted),
-                const SizedBox(width: 4),
-                Text(order.time,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textMuted)),
-                const SizedBox(width: 16),
-                const Icon(Icons.location_on_outlined,
-                    size: 14, color: AppColors.textMuted),
-                const SizedBox(width: 4),
-                Text(order.location,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textMuted)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                backgroundColor: AppColors.progressTrack,
-                color: AppColors.progressGreen,
-                minHeight: 6,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _StepLabel('Confirmed'),
-                _StepLabel('Dispatched'),
-                _StepLabel('On the way'),
-                _StepLabel('Reached'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SmallInfo extends StatelessWidget {
-  const _SmallInfo(this.label, this.value);
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textMuted, fontSize: 11)),
-        Text(value,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(fontWeight: FontWeight.w600)),
-      ],
-    );
-  }
-}
-
-class _StepLabel extends StatelessWidget {
-  const _StepLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontSize: 9,
-            color: AppColors.textMuted,
-          ),
     );
   }
 }

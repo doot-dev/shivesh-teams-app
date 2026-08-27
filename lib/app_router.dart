@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/providers/tech_api_provider.dart';
+
 import 'features/auth/presentation/pages/change_password_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/otp_page.dart';
@@ -53,7 +55,7 @@ class _RouterNotifier extends ChangeNotifier {
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = _RouterNotifier(ref);
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: notifier.redirect,
@@ -130,4 +132,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Tapping an "Order Assigned" / status notification opens that order.
+  //
+  // Routed here rather than from the service because only the router can
+  // navigate, and the guard below matters: pushing /orders/<id> while signed
+  // out would land a logged-out technician on a screen that 401s. The redirect
+  // sends them to /login, and the order is simply not auto-opened.
+  final sub = ref.read(notificationServiceProvider).onOrderTapped.listen((
+    orderId,
+  ) {
+    if (!ref.read(authProvider).isLoggedIn) return;
+    router.push('/orders/$orderId');
+  });
+  ref.onDispose(sub.cancel);
+
+  return router;
 });

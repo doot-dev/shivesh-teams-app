@@ -43,6 +43,13 @@ class _AuthInterceptor extends Interceptor {
   /// Requests that legitimately answer 401 as *validation*, not expiry.
   static const _authPaths = '/auth/';
 
+  /// Background/telemetry calls that must NEVER sign the technician out.
+  ///
+  /// FCM registration fires right after login and is not user-visible; if it
+  /// fails the app still works perfectly, so treating its 401 as an expired
+  /// session would boot a technician holding a perfectly valid token.
+  static const _nonCriticalPaths = <String>['/fcm-token'];
+
   @override
   Future<void> onRequest(
     RequestOptions options,
@@ -67,9 +74,10 @@ class _AuthInterceptor extends Interceptor {
     // whole job is to report that the stored token is dead.
     final isSessionCheck = path.contains('/auth/session');
     final isAuthCall = path.contains(_authPaths) && !isSessionCheck;
+    final isNonCritical = _nonCriticalPaths.any(path.contains);
     final isRejectedToken = status == 401 || status == 403;
 
-    if (isRejectedToken && !isAuthCall) {
+    if (isRejectedToken && !isAuthCall && !isNonCritical) {
       // Clear the dead token immediately so no in-flight retry re-sends it and
       // a cold start cannot restore a session the server already rejected.
       await _storage.delete(key: tokenKey);

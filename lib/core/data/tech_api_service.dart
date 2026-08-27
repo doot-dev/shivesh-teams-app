@@ -108,6 +108,23 @@ class TechApiService {
     await _dio.put('$_base/notifications/$notificationId/read');
   }
 
+  // ─── Push registration ─────────────────────────────────────────────────────
+
+  /// Register this device for push. The backend keeps at most 5 devices per
+  /// technician and evicts the oldest, so re-registering is always safe.
+  Future<void> registerFcmToken(String token, String platform) async {
+    await _dio.put(
+      '$_base/fcm-token',
+      data: {'token': token, 'platform': platform},
+    );
+  }
+
+  /// Drop this device on logout so the next technician to sign in on a shared
+  /// site tablet does not inherit the previous one's notifications.
+  Future<void> unregisterFcmToken(String token) async {
+    await _dio.delete('$_base/fcm-token', data: {'token': token});
+  }
+
   // ─── TM details ────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> createTm(

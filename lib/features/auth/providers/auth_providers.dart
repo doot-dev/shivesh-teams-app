@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/dio_provider.dart';
 import '../../../core/providers/storage_providers.dart';
+import '../../../core/providers/tech_api_provider.dart';
 import '../data/auth_service.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -215,6 +217,20 @@ class AuthNotifier extends Notifier<AuthState> {
       phone: data['phone'] as String?,
       status: AuthStatus.authenticated,
     );
+
+    // Register for push AFTER the token is stored — the interceptor reads it
+    // from secure storage, so registering earlier sends an unauthenticated call.
+    unawaited(_initPush());
+  }
+
+  /// Start push and register this device. Never allowed to fail a login: a
+  /// technician with no notifications can still work the whole app.
+  Future<void> _initPush() async {
+    try {
+      await ref.read(notificationServiceProvider).initialize();
+    } catch (_) {
+      // Non-fatal — retried on the next login / cold start.
+    }
   }
 
   Future<bool> changePassword(String oldPassword, String newPassword) async {
@@ -267,6 +283,16 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Release the push slot BEFORE clearing the token: the unregister call is
+    // authenticated, so wiping storage first would make it 401 and leave this
+    // device occupying one of the technician's 5 slots (and still receiving
+    // notifications for orders they no longer handle).
+    try {
+      await ref.read(notificationServiceProvider).unregister();
+    } catch (_) {
+      // Best effort — never block a logout on it.
+    }
+
     final storage = ref.read(secureStorageProvider);
     await storage.delete(key: tokenKey);
     await storage.delete(key: userDataKey);

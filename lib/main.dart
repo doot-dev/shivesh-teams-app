@@ -15,7 +15,7 @@ class FieldTechApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
-      title: 'Shivesh Field Tech',
+      title: 'Shivesh Team',
       theme: AppTheme.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,

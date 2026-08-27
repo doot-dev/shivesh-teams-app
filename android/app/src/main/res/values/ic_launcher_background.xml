@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher icon backdrop. White, not brand blue: the logo artwork itself
+         is dark navy-teal, so it needs a light plate to stay legible. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

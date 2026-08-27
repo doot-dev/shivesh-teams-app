@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="?android:colorBackground" />
+<!--
+  API 21+ launch window. This file SHADOWS drawable/launch_background.xml on
+  every modern device, so changing only the base drawable has no visible
+  effect — both must stay in sync.
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+  Brand blue rather than ?android:colorBackground so the native window matches
+  SplashPage's gradient and the handoff is seamless in light AND dark mode.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/brand_splash_background" />
 </layer-list>

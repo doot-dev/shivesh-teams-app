@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the middle of AppColors.brandGradient (blue700 -> blue900) so
+         the native launch window hands off to the Flutter splash without the
+         white flash Flutter's default template produces. -->
+    <color name="brand_splash_background">#2131AF</color>
+</resources>

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+<!--
+  Native launch window, shown for the few frames before the Flutter engine
+  paints. It is brand blue (not the template's white) so it blends straight
+  into SplashPage's gradient instead of flashing white first.
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+  The logo is deliberately NOT drawn here: this drawable is not animated, and
+  the Flutter splash immediately draws its own animated mark on top.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/brand_splash_background" />
 </layer-list>

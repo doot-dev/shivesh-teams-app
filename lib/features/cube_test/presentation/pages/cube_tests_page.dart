@@ -278,6 +278,12 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
             label: 'Quantity',
             value: t.quantity,
           ),
+          if (t.addedAtLabel.isNotEmpty)
+            DetailRow(
+              icon: Icons.schedule_rounded,
+              label: 'Added on',
+              value: t.addedAtLabel,
+            ),
           const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.symmetric(

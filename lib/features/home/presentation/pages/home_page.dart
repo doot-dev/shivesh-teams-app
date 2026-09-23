@@ -203,9 +203,7 @@ class _HomeHero extends ConsumerWidget {
     final orders = activeOrdersAsync.value ?? const <FieldOrder>[];
 
     final inTransit = orders
-        .where((o) =>
-            o.deliveryStatus == DeliveryStatus.onTheWay ||
-            o.deliveryStatus == DeliveryStatus.dispatched)
+        .where((o) => o.deliveryStatus == DeliveryStatus.onTheWay)
         .length;
     final reached = orders
         .where((o) => o.deliveryStatus == DeliveryStatus.reached)

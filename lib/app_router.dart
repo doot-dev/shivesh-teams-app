@@ -11,6 +11,7 @@ import 'features/auth/providers/auth_providers.dart';
 import 'features/common/presentation/pages/splash_page.dart';
 import 'features/common/presentation/widgets/main_scaffold.dart';
 import 'features/cube_test/presentation/pages/add_cube_test_page.dart';
+import 'features/cube_test/presentation/pages/all_cube_tests_page.dart';
 import 'features/cube_test/presentation/pages/cube_tests_page.dart';
 import 'features/home/presentation/pages/home_page.dart';
 import 'features/notifications/presentation/pages/notifications_page.dart';
@@ -122,6 +123,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/orders',
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: OrdersPage()),
+          ),
+          GoRoute(
+            path: '/cube-tests',
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: AllCubeTestsPage()),
           ),
           GoRoute(
             path: '/profile',

@@ -127,6 +127,14 @@ class TechApiService {
 
   // ─── TM details ────────────────────────────────────────────────────────────
 
+  /// Log a TM, optionally attaching the challan photo in the same request.
+  ///
+  /// Always sent as multipart/form-data — the backend's multer middleware reads
+  /// the photo from the `challan` field, and mixing a JSON body with a file is
+  /// not possible, so the scalar fields ride along as form fields.
+  ///
+  /// This works on CLOSED orders too: the server records `createdAt`, so a late
+  /// challan is stamped with when it was really submitted.
   Future<Map<String, dynamic>> createTm(
     String orderId, {
     required String truckNo,
@@ -134,19 +142,31 @@ class TechApiService {
     required String batchStartTime,
     required String batchEndTime,
     required String challanNo,
+    String? challanFilePath,
+    String? challanFileName,
   }) async {
-    final res = await _dio.post('$_base/orders/$orderId/tm', data: {
+    final form = FormData.fromMap({
       'truckNo': truckNo,
       'qty': qty,
       'batchStartTime': batchStartTime,
       'batchEndTime': batchEndTime,
       'challanNo': challanNo,
+      if (challanFilePath != null)
+        'challan': await MultipartFile.fromFile(
+          challanFilePath,
+          filename: challanFileName,
+        ),
     });
+
+    final res = await _dio.post('$_base/orders/$orderId/tm', data: form);
     return (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
   }
 
   /// Update a TM. Only non-null fields are sent, matching the backend's
   /// partial-update semantics.
+  ///
+  /// Pass [challanFilePath] to attach or replace the challan photo — that
+  /// switches the request to multipart, which the same endpoint accepts.
   Future<void> updateTm(
     String orderId,
     String tmId, {
@@ -156,15 +176,31 @@ class TechApiService {
     String? batchEndTime,
     String? challanNo,
     String? status,
+    String? challanFilePath,
+    String? challanFileName,
   }) async {
-    await _dio.put('$_base/orders/$orderId/tm/$tmId', data: {
+    final fields = <String, dynamic>{
       'truckNo': ?truckNo,
       'qty': ?qty,
       'batchStartTime': ?batchStartTime,
       'batchEndTime': ?batchEndTime,
       'challanNo': ?challanNo,
       'status': ?status,
+    };
+
+    if (challanFilePath == null) {
+      await _dio.put('$_base/orders/$orderId/tm/$tmId', data: fields);
+      return;
+    }
+
+    final form = FormData.fromMap({
+      ...fields,
+      'challan': await MultipartFile.fromFile(
+        challanFilePath,
+        filename: challanFileName,
+      ),
     });
+    await _dio.put('$_base/orders/$orderId/tm/$tmId', data: form);
   }
 
   Future<void> deleteTm(String orderId, String tmId) async {
@@ -172,6 +208,34 @@ class TechApiService {
   }
 
   // ─── Cube testing reports ──────────────────────────────────────────────────
+
+  /// Every cube test across ALL orders assigned to this technician.
+  ///
+  /// Backs the "Cube Tests" tab. [status] is `due` (test date reached) or
+  /// `upcoming`; [dateFrom]/[dateTo] filter the CASTING date and must be ISO
+  /// `yyyy-MM-dd` — the backend ignores any other format rather than erroring.
+  /// Blank values are omitted so an empty search behaves like no filter.
+  Future<List<CubeTestEntry>> getAllCubeTests({
+    String? query,
+    String? dateFrom,
+    String? dateTo,
+    String? status,
+  }) async {
+    final q = query?.trim() ?? '';
+    final res = await _dio.get(
+      '$_base/cube-tests',
+      queryParameters: {
+        if (q.isNotEmpty) 'q': q,
+        if (dateFrom != null && dateFrom.isNotEmpty) 'dateFrom': dateFrom,
+        if (dateTo != null && dateTo.isNotEmpty) 'dateTo': dateTo,
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+    );
+    final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
+    return data
+        .map((e) => CubeTestEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 
   Future<List<CubeTest>> getCubeTests(String orderId) async {
     final res = await _dio.get('$_base/orders/$orderId/cube-test');

@@ -1,3 +1,25 @@
+const _months = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/// Lenient ISO parse — the API sends `createdAt` as a string, but a null or a
+/// malformed value must not blow up an entire order payload.
+DateTime? _parseDate(dynamic value) {
+  if (value is DateTime) return value;
+  if (value is! String || value.isEmpty) return null;
+  return DateTime.tryParse(value)?.toLocal();
+}
+
+/// "12 Sep 2026, 1:48 PM" in the device's local timezone.
+String _fmtDateTime(DateTime dt) {
+  final d = dt.toLocal();
+  final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  final minute = d.minute.toString().padLeft(2, '0');
+  final meridiem = d.hour < 12 ? 'AM' : 'PM';
+  return '${d.day} ${_months[d.month - 1]} ${d.year}, $hour12:$minute $meridiem';
+}
+
 String _fmtTimeAgo(String? iso) {
   if (iso == null) return '';
   try {
@@ -12,22 +34,26 @@ String _fmtTimeAgo(String? iso) {
   }
 }
 
-/// The four delivery steps a technician moves an order through.
+/// The three delivery steps a technician moves an order through:
+/// Confirmed → On the way → Reached.
 ///
 /// These map onto the backend's `deliveryStatus` enum
 /// (ASSIGNED / IN_TRANSIT / DELIVERED / COMPLETED) via [apiValue] and
-/// [mapDeliveryStatus]. `dispatched` has no distinct server value — it is a
-/// UI-only midpoint that still reports ASSIGNED — so never send a raw
-/// `.name` to the API; always go through [apiValue].
-enum DeliveryStatus { confirmed, dispatched, onTheWay, reached }
+/// [mapDeliveryStatus], so never send a raw `.name` to the API — always go
+/// through [apiValue].
+///
+/// A fourth `dispatched` step was removed deliberately: it had no distinct
+/// server value (it reported ASSIGNED, exactly like `confirmed`), so picking it
+/// looked like progress to the technician while the backend recorded no change
+/// at all. The order of these values also drives [DeliveryTracker], which
+/// renders one dot per value — adding a step here adds a dot there.
+enum DeliveryStatus { confirmed, onTheWay, reached }
 
 extension DeliveryStatusLabel on DeliveryStatus {
   String get label {
     switch (this) {
       case DeliveryStatus.confirmed:
         return 'Confirmed';
-      case DeliveryStatus.dispatched:
-        return 'Dispatched';
       case DeliveryStatus.onTheWay:
         return 'On the way';
       case DeliveryStatus.reached:
@@ -39,7 +65,6 @@ extension DeliveryStatusLabel on DeliveryStatus {
   String get apiValue {
     switch (this) {
       case DeliveryStatus.confirmed:
-      case DeliveryStatus.dispatched:
         return 'ASSIGNED';
       case DeliveryStatus.onTheWay:
         return 'IN_TRANSIT';
@@ -52,10 +77,8 @@ extension DeliveryStatusLabel on DeliveryStatus {
     switch (this) {
       case DeliveryStatus.confirmed:
         return 0.0;
-      case DeliveryStatus.dispatched:
-        return 0.33;
       case DeliveryStatus.onTheWay:
-        return 0.66;
+        return 0.5;
       case DeliveryStatus.reached:
         return 1.0;
     }
@@ -75,6 +98,12 @@ DeliveryStatus mapDeliveryStatus(String? s) {
   }
 }
 
+/// One transit mixer logged against an order.
+///
+/// [createdAt] is the server's record of WHEN this TM was entered, which
+/// matters because TMs can be added after an order closes — the entry is
+/// backdated paperwork, and [addedAtLabel] is what tells the office it arrived
+/// late rather than silently looking like it was there all along.
 class TmDetail {
   TmDetail({
     required this.id,
@@ -86,6 +115,7 @@ class TmDetail {
     required this.challanNo,
     this.challanUrl,
     this.status = DeliveryStatus.confirmed,
+    this.createdAt,
   });
 
   final String id;
@@ -98,6 +128,14 @@ class TmDetail {
   final String? challanUrl;
   DeliveryStatus status;
 
+  /// When the technician actually submitted this TM (server time).
+  final DateTime? createdAt;
+
+  bool get hasChallanFile => (challanUrl ?? '').isNotEmpty;
+
+  /// "12 Sep 2026, 1:48 PM" — the moment this entry was recorded.
+  String get addedAtLabel => createdAt == null ? '' : _fmtDateTime(createdAt!);
+
   factory TmDetail.fromJson(Map<String, dynamic> json) => TmDetail(
         id: json['id'] as String? ?? json['tmId'] as String? ?? '',
         tmNumber: json['tmNumber'] as String? ?? '',
@@ -108,6 +146,7 @@ class TmDetail {
         challanNo: json['challanNo'] as String? ?? '',
         challanUrl: json['challanUrl'] as String?,
         status: mapDeliveryStatus(json['status'] as String?),
+        createdAt: _parseDate(json['createdAt']),
       );
 }
 

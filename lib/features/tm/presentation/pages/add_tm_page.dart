@@ -23,7 +23,13 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
 
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+
+  /// The picked challan. BOTH are needed: the name is what the technician sees,
+  /// the path is what actually gets uploaded. An earlier version kept only the
+  /// name, so the file was never sent and every challan silently went missing.
   String? _uploadedFileName;
+  String? _uploadedFilePath;
+
   bool _isSubmitting = false;
 
   @override
@@ -66,7 +72,11 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
     );
     if (result != null && result.files.isNotEmpty) {
-      setState(() => _uploadedFileName = result.files.first.name);
+      final picked = result.files.first;
+      setState(() {
+        _uploadedFileName = picked.name;
+        _uploadedFilePath = picked.path;
+      });
     }
   }
 
@@ -94,6 +104,8 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
             batchStartTime: _formatTime(_startTime!),
             batchEndTime: _formatTime(_endTime!),
             challanNo: _challanNoController.text.trim(),
+            challanFilePath: _uploadedFilePath,
+            challanFileName: _uploadedFileName,
           );
       ref.invalidate(orderByIdProvider(widget.orderId));
       if (mounted) {

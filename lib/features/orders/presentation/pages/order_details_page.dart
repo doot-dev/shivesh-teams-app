@@ -340,17 +340,26 @@ class _DetailsTab extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
 
+        // TMs can be added at ANY time, including after the order is closed —
+        // challans and paperwork routinely land late. The entry is stamped with
+        // its own createdAt so a late addition is visible as such.
         StaggeredItem(
           index: step++,
           child: SectionHeader(
             title: 'TM details',
             subtitle: '${order.tmDetails.length} transit mixer(s)',
-            actionLabel: order.isActive ? 'Add TM' : null,
-            onAction: order.isActive
-                ? () => context.push('/orders/$orderId/add-tm')
-                : null,
+            actionLabel: 'Add TM',
+            onAction: () => context.push('/orders/$orderId/add-tm'),
           ),
         ),
+        if (!order.isActive) ...[
+          const SizedBox(height: AppSpacing.sm),
+          const _ClosedOrderNote(
+            message:
+                'This order is closed. Anything you add now is recorded with '
+                'today\'s date and time.',
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
 
         if (order.tmDetails.isEmpty)
@@ -364,11 +373,7 @@ class _DetailsTab extends StatelessWidget {
           ...order.tmDetails.map(
             (tm) => Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: _TmCard(
-                tm: tm,
-                orderId: orderId,
-                isActive: order.isActive,
-              ),
+              child: _TmCard(tm: tm, orderId: orderId),
             ),
           ),
       ],
@@ -534,12 +539,51 @@ class _CubeTestEntry extends StatelessWidget {
   }
 }
 
+/// Inline notice explaining that a closed order still accepts new entries.
+///
+/// Deliberately informational rather than a blocker: the office needs late
+/// challans and cube results recorded, so the app says WHEN the entry will be
+/// stamped instead of refusing it.
+class _ClosedOrderNote extends StatelessWidget {
+  const _ClosedOrderNote({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm + 2,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.history_rounded,
+              size: 16, color: AppColors.textMuted),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textMuted, height: 1.35),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TmCard extends ConsumerStatefulWidget {
-  const _TmCard(
-      {required this.tm, required this.orderId, required this.isActive});
+  const _TmCard({required this.tm, required this.orderId});
   final TmDetail tm;
   final String orderId;
-  final bool isActive;
 
   @override
   ConsumerState<_TmCard> createState() => _TmCardState();
@@ -655,20 +699,19 @@ class _TmCardState extends ConsumerState<_TmCard> {
                   ],
                 ),
               ),
-              if (widget.isActive)
-                _deleting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            size: 20, color: AppColors.danger),
-                        onPressed: _confirmDelete,
-                        tooltip: 'Delete TM',
-                        visualDensity: VisualDensity.compact,
-                      ),
+              _deleting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          size: 20, color: AppColors.danger),
+                      onPressed: _confirmDelete,
+                      tooltip: 'Delete TM',
+                      visualDensity: VisualDensity.compact,
+                    ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -677,45 +720,55 @@ class _TmCardState extends ConsumerState<_TmCard> {
           DetailRow(label: 'Batch start', value: tm.batchStartTime),
           DetailRow(label: 'Batch end', value: tm.batchEndTime),
           DetailRow(label: 'Challan no.', value: tm.challanNo),
-          if (widget.isActive) ...[
-            const SizedBox(height: AppSpacing.md),
-            const FieldLabel('Status'),
-            const SizedBox(height: AppSpacing.xs + 2),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: DropdownButton<DeliveryStatus>(
-                value: _selectedStatus,
-                isExpanded: true,
-                underline: const SizedBox.shrink(),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                icon: _savingStatus
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.textMuted),
-                items: DeliveryStatus.values
-                    .map((s) => DropdownMenuItem(
-                          value: s,
-                          child: Text(s.label,
-                              style: theme.textTheme.bodyMedium),
-                        ))
-                    .toList(),
-                onChanged: _savingStatus
-                    ? null
-                    : (v) {
-                        if (v != null) _updateStatus(v);
-                      },
-              ),
+          if (tm.addedAtLabel.isNotEmpty)
+            DetailRow(
+              icon: Icons.schedule_rounded,
+              label: 'Added on',
+              value: tm.addedAtLabel,
             ),
-          ],
+          if (tm.hasChallanFile)
+            const DetailRow(
+              icon: Icons.attach_file_rounded,
+              label: 'Challan photo',
+              value: 'Attached',
+            ),
+          const SizedBox(height: AppSpacing.md),
+          const FieldLabel('Status'),
+          const SizedBox(height: AppSpacing.xs + 2),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: DropdownButton<DeliveryStatus>(
+              value: _selectedStatus,
+              isExpanded: true,
+              underline: const SizedBox.shrink(),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              icon: _savingStatus
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.textMuted),
+              items: DeliveryStatus.values
+                  .map((s) => DropdownMenuItem(
+                        value: s,
+                        child:
+                            Text(s.label, style: theme.textTheme.bodyMedium),
+                      ))
+                  .toList(),
+              onChanged: _savingStatus
+                  ? null
+                  : (v) {
+                      if (v != null) _updateStatus(v);
+                    },
+            ),
+          ),
         ],
       ),
     );

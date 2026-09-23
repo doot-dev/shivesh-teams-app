@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/dio_provider.dart';
+import '../../../core/providers/session_reset.dart';
 import '../../../core/providers/storage_providers.dart';
 import '../../../core/providers/tech_api_provider.dart';
 import '../data/auth_service.dart';
@@ -104,6 +105,10 @@ class AuthNotifier extends Notifier<AuthState> {
       status: AuthStatus.unauthenticated,
       sessionMessage: message,
     );
+    // Storage is not the only place the old session lives — the cached orders,
+    // cube tests and profile must go too, or the next technician to sign in on
+    // this phone would see them. Same reasoning as [logout].
+    resetSessionData(ref);
   }
 
   /// Restore a persisted session, then confirm it is still accepted.
@@ -203,6 +208,11 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> _applyLogin(Map<String, dynamic> data) async {
+    // Belt and braces: a session that ended WITHOUT a clean logout (crash,
+    // revoked token, app killed) leaves the previous technician's data cached.
+    // Wipe it before this session's screens can read it.
+    resetSessionData(ref);
+
     final token = data['token'] as String;
     final storage = ref.read(secureStorageProvider);
 
@@ -297,6 +307,14 @@ class AuthNotifier extends Notifier<AuthState> {
     await storage.delete(key: tokenKey);
     await storage.delete(key: userDataKey);
     state = const AuthState(status: AuthStatus.unauthenticated);
+
+    // Clearing the token is NOT enough. Every orders/cube-test/profile provider
+    // is a plain (non-autoDispose) provider living in the root ProviderScope,
+    // so without this the next technician to sign in on this phone would see
+    // the previous one's cached data. Reset AFTER the state change so the
+    // router has already redirected to /login and nothing refetches with a
+    // dead token.
+    resetSessionData(ref);
   }
 
   void clearSessionMessage() {

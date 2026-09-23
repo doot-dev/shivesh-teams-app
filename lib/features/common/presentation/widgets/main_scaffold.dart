@@ -22,13 +22,18 @@ class MainScaffold extends StatelessWidget {
     _NavDest('/home', Icons.grid_view_rounded, Icons.grid_view_outlined, 'Home'),
     _NavDest('/orders', Icons.local_shipping_rounded,
         Icons.local_shipping_outlined, 'Orders'),
+    _NavDest('/cube-tests', Icons.science_rounded, Icons.science_outlined,
+        'Cube tests'),
     _NavDest('/profile', Icons.person_rounded, Icons.person_outline_rounded,
         'Profile'),
   ];
 
   int _locationToIndex(String loc) {
+    // `/orders` must be checked first: the per-order cube test list lives at
+    // /orders/:id/cube-tests, which belongs to the Orders tab, not this one.
     if (loc.startsWith('/orders')) return 1;
-    if (loc.startsWith('/profile')) return 2;
+    if (loc.startsWith('/cube-tests')) return 2;
+    if (loc.startsWith('/profile')) return 3;
     return 0;
   }
 

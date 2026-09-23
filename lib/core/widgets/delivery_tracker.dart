@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../../features/orders/data/models/order_models.dart';
 
-/// Horizontal 4-step delivery tracker (Confirmed → Dispatched → On the way →
-/// Reached).
+/// Horizontal delivery tracker (Confirmed → On the way → Reached).
+///
+/// The steps are read straight from `DeliveryStatus.values`, so this widget
+/// never needs editing when a step is added or removed — change the enum and
+/// the dots, connectors and labels all follow.
 ///
 /// The connector line animates its fill, so a status change reads as forward
 /// motion rather than a redraw. Steps at or before [status] are "done"; the

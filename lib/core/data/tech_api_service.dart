@@ -144,8 +144,12 @@ class TechApiService {
     required String challanNo,
     String? challanFilePath,
     String? challanFileName,
+    String? dispatchTime,
+    String? arrivalTime,
   }) async {
     final form = FormData.fromMap({
+      'dispatchTime': ?dispatchTime,
+      'arrivalTime': ?arrivalTime,
       'truckNo': truckNo,
       'qty': qty,
       'batchStartTime': batchStartTime,

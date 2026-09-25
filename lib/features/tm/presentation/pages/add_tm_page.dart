@@ -24,6 +24,15 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
 
+  /// W13: plant dispatch and site arrival times (optional).
+  TimeOfDay? _dispatchTime;
+  TimeOfDay? _arrivalTime;
+
+  Future<void> _pickOptional(void Function(TimeOfDay) set) async {
+    final picked = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+    if (picked != null) setState(() => set(picked));
+  }
+
   /// The picked challan. BOTH are needed: the name is what the technician sees,
   /// the path is what actually gets uploaded. An earlier version kept only the
   /// name, so the file was never sent and every challan silently went missing.
@@ -103,6 +112,8 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
             qty: _quantityController.text.trim(),
             batchStartTime: _formatTime(_startTime!),
             batchEndTime: _formatTime(_endTime!),
+            dispatchTime: _dispatchTime == null ? null : _formatTime(_dispatchTime!),
+            arrivalTime: _arrivalTime == null ? null : _formatTime(_arrivalTime!),
             challanNo: _challanNoController.text.trim(),
             challanFilePath: _uploadedFilePath,
             challanFileName: _uploadedFileName,
@@ -187,6 +198,22 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
               hint: 'Select end time',
               value: _endTime?.format(context),
               onTap: () => _pickTime(false),
+            ),
+            const SizedBox(height: 16),
+            _FieldLabel('Dispatched from plant (optional)'),
+            const SizedBox(height: 6),
+            _TimePicker(
+              hint: 'Select dispatch time',
+              value: _dispatchTime?.format(context),
+              onTap: () => _pickOptional((t) => _dispatchTime = t),
+            ),
+            const SizedBox(height: 16),
+            _FieldLabel('Arrived at site (optional)'),
+            const SizedBox(height: 6),
+            _TimePicker(
+              hint: 'Select arrival time',
+              value: _arrivalTime?.format(context),
+              onTap: () => _pickOptional((t) => _arrivalTime = t),
             ),
             const SizedBox(height: 28),
             _SectionHeader('Upload Challan'),

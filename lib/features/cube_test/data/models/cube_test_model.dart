@@ -99,6 +99,67 @@ extension CubeTestPeriodX on CubeTestPeriod {
 final _dateFmt = DateFormat('dd MMM yyyy');
 final _dateTimeFmt = DateFormat('dd MMM yyyy, h:mm a');
 
+/// "Rakesh Pawar (client)" — who logged a test or added a file. Null when the
+/// server has no name (older rows, backfilled files).
+String? addedByLabel(String? type, String? name) {
+  if (name == null || name.isEmpty) return null;
+  final role = switch (type) {
+    'CLIENT_CONTACT' => 'client',
+    'FIELD_TECH' => 'technician',
+    'USER' => 'office',
+    _ => null,
+  };
+  return role == null ? name : '$name ($role)';
+}
+
+/// One result sheet or photo on a cube test. A test has any number of these,
+/// added at any time by the office, a technician or the client.
+class CubeTestAttachment {
+  const CubeTestAttachment({
+    required this.id,
+    required this.fileUrl,
+    this.fileName,
+    this.addedByType,
+    this.addedByName,
+    this.createdAt,
+  });
+
+  /// Empty for a file known only from the legacy `fileUrl` — it can be viewed
+  /// but not removed.
+  final String id;
+
+  /// Server-relative `/uploads/cube-tests/...` path, opened with
+  /// `openServerFile`.
+  final String fileUrl;
+  final String? fileName;
+  final String? addedByType;
+  final String? addedByName;
+  final DateTime? createdAt;
+
+  /// The uploaded name, else the last path segment.
+  String get displayName => (fileName != null && fileName!.isNotEmpty)
+      ? fileName!
+      : fileUrl.split('/').last;
+
+  bool get isPdf => displayName.toLowerCase().endsWith('.pdf');
+
+  /// "Rakesh Pawar (client) · 26 Sep 2026", skipping whichever is missing.
+  String get subtitle => [
+    ?addedByLabel(addedByType, addedByName),
+    if (createdAt != null) _dateFmt.format(createdAt!),
+  ].join(' · ');
+
+  factory CubeTestAttachment.fromJson(Map<String, dynamic> json) =>
+      CubeTestAttachment(
+        id: json['id']?.toString() ?? '',
+        fileUrl: json['fileUrl'] as String? ?? '',
+        fileName: json['fileName'] as String?,
+        addedByType: json['addedByType'] as String?,
+        addedByName: json['addedByName'] as String?,
+        createdAt: CubeTest._parseNullableDate(json['createdAt']),
+      );
+}
+
 /// One cube testing report logged against an order.
 ///
 /// [createdAt] is when the report was actually SUBMITTED, which is not the same
@@ -113,6 +174,9 @@ class CubeTest {
     required this.period,
     required this.toDate,
     this.fileUrl,
+    this.attachments = const [],
+    this.addedByType,
+    this.addedByName,
     this.createdAt,
   });
 
@@ -129,10 +193,21 @@ class CubeTest {
   /// prefixed before it can be opened — see `CubeTest.absoluteFileUrl`.
   final String? fileUrl;
 
+  /// Every live file, oldest first. Responses from before attachments existed
+  /// (e.g. the offline cache) get their single [fileUrl] here instead.
+  final List<CubeTestAttachment> attachments;
+
+  /// Who logged the test: USER, FIELD_TECH or CLIENT_CONTACT. Null on old rows.
+  final String? addedByType;
+  final String? addedByName;
+
   /// When this report was submitted (server time). Null on older rows.
   final DateTime? createdAt;
 
-  bool get hasFile => fileUrl != null && fileUrl!.isNotEmpty;
+  bool get hasFile => attachments.isNotEmpty;
+
+  /// "Rakesh Pawar (client)", or null when unknown.
+  String? get loggedBy => addedByLabel(addedByType, addedByName);
 
   String get castingDateLabel => _dateFmt.format(castingDate);
   String get testDateLabel => _dateFmt.format(toDate);
@@ -143,8 +218,7 @@ class CubeTest {
 
   /// True once the scheduled testing date has arrived.
   /// Test date passed and no result yet (matches the server's DUE status).
-  bool get isDue =>
-      (fileUrl == null || fileUrl!.isEmpty) && !toDate.isAfter(DateTime.now());
+  bool get isDue => !hasFile && !toDate.isAfter(DateTime.now());
 
   /// Whole days until the test is due; negative once it has passed.
   int get daysUntilDue {
@@ -166,15 +240,27 @@ class CubeTest {
     return null;
   }
 
-  factory CubeTest.fromJson(Map<String, dynamic> json) => CubeTest(
-    id: json['id'] as String? ?? '',
-    castingDate: _parseDate(json['castingDate']),
-    quantity: json['quantity']?.toString() ?? '',
-    period: CubeTestPeriodX.fromApi(json['period'] as String?),
-    toDate: _parseDate(json['toDate']),
-    fileUrl: json['fileUrl'] as String?,
-    createdAt: _parseNullableDate(json['createdAt']),
-  );
+  factory CubeTest.fromJson(Map<String, dynamic> json) {
+    final fileUrl = json['fileUrl'] as String?;
+    final attachments = (json['attachments'] as List<dynamic>? ?? const [])
+        .map((e) => CubeTestAttachment.fromJson(e as Map<String, dynamic>))
+        .toList();
+    if (attachments.isEmpty && fileUrl != null && fileUrl.isNotEmpty) {
+      attachments.add(CubeTestAttachment(id: '', fileUrl: fileUrl));
+    }
+    return CubeTest(
+      id: json['id'] as String? ?? '',
+      castingDate: _parseDate(json['castingDate']),
+      quantity: json['quantity']?.toString() ?? '',
+      period: CubeTestPeriodX.fromApi(json['period'] as String?),
+      toDate: _parseDate(json['toDate']),
+      fileUrl: fileUrl,
+      attachments: attachments,
+      addedByType: json['addedByType'] as String?,
+      addedByName: json['addedByName'] as String?,
+      createdAt: _parseNullableDate(json['createdAt']),
+    );
+  }
 }
 
 /// A cube test as it appears in the cross-order "All cube tests" feed.

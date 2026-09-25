@@ -10,6 +10,7 @@ import 'features/auth/presentation/pages/otp_page.dart';
 import 'features/auth/providers/auth_providers.dart';
 import 'features/common/presentation/pages/splash_page.dart';
 import 'features/common/presentation/widgets/main_scaffold.dart';
+import 'features/cube_test/data/models/cube_test_model.dart';
 import 'features/cube_test/presentation/pages/add_cube_test_page.dart';
 import 'features/cube_test/presentation/pages/all_cube_tests_page.dart';
 import 'features/cube_test/presentation/pages/cube_tests_page.dart';
@@ -101,8 +102,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: 'add',
-                builder: (context, state) =>
-                    AddCubeTestPage(orderId: state.pathParameters['id']!),
+                // extra: the CubeTest to edit; none when adding one.
+                builder: (context, state) => AddCubeTestPage(
+                  orderId: state.pathParameters['id']!,
+                  test: state.extra as CubeTest?,
+                ),
               ),
             ],
           ),

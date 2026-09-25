@@ -11,13 +11,22 @@ import '../../../../core/widgets/app_animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../data/models/cube_test_model.dart';
 import '../../providers/cube_test_providers.dart';
+import 'cube_tests_page.dart' show CubeFileRow;
 
 final _dateFmt = DateFormat('dd MMM yyyy');
 
-/// Log a new cube test against an order, optionally attaching the result sheet.
+// Server limits per request (cubeTestUploadConfig.js).
+const _maxFiles = 10;
+const _maxBytes = 10 * 1024 * 1024;
+
+/// Log a new cube test against an order, or edit [test]: change the sample,
+/// add result files, remove old ones. Works at any time, even on closed orders.
 class AddCubeTestPage extends ConsumerStatefulWidget {
-  const AddCubeTestPage({super.key, required this.orderId});
+  const AddCubeTestPage({super.key, required this.orderId, this.test});
   final String orderId;
+
+  /// The test being edited; null when logging a new one.
+  final CubeTest? test;
 
   @override
   ConsumerState<AddCubeTestPage> createState() => _AddCubeTestPageState();
@@ -31,9 +40,28 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
   DateTime? _customDate;
   CubeTestPeriod _period = CubeTestPeriod.sevenDays;
 
-  String? _filePath;
-  String? _fileName;
+  /// Files picked on this screen, sent when saving.
+  final List<PlatformFile> _files = [];
+
+  /// Files already on the server (edit mode). Removing one is saved at once.
+  List<CubeTestAttachment> _existing = const [];
+  final Set<String> _removing = {};
   bool _isSubmitting = false;
+
+  bool get _editing => widget.test != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final t = widget.test;
+    if (t == null) return;
+    _castingDate = t.castingDate;
+    _quantityController.text = t.quantity;
+    _period = t.period;
+    // Only a custom date is typed by hand; a standard one is computed.
+    if (t.period == CubeTestPeriod.custom) _customDate = t.toDate;
+    _existing = t.attachments;
+  }
 
   @override
   void dispose() {
@@ -88,18 +116,65 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
     child: child!,
   );
 
-  Future<void> _pickFile() async {
+  Future<void> _pickFiles() async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      allowMultiple: true,
     );
-    if (result != null && result.files.isNotEmpty) {
-      final f = result.files.first;
-      setState(() {
-        _filePath = f.path;
-        _fileName = f.name;
-      });
+    if (result == null) return;
+    // The server takes 10 files of 10 MB each per request.
+    final ok = result.files
+        .where((f) => f.path != null && f.size <= _maxBytes)
+        .where((f) => !_files.any((p) => p.path == f.path))
+        .take(_maxFiles - _files.length)
+        .toList();
+    if (ok.length < result.files.length) {
+      _toast(
+        'Some files were skipped: up to $_maxFiles at a time, 10 MB each.',
+      );
     }
+    setState(() => _files.addAll(ok));
+  }
+
+  Future<void> _removeExisting(CubeTestAttachment a) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove file'),
+        content: Text('${a.displayName} will be removed from this test.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _removing.add(a.id));
+    try {
+      final updated = await ref
+          .read(techApiProvider)
+          .deleteCubeTestAttachment(widget.orderId, widget.test!.id, a.id);
+      _refreshLists();
+      if (mounted) setState(() => _existing = updated.attachments);
+    } catch (e) {
+      if (mounted) _toast('Could not remove: ${_message(e)}');
+    } finally {
+      if (mounted) setState(() => _removing.remove(a.id));
+    }
+  }
+
+  void _refreshLists() {
+    ref.invalidate(cubeTestsProvider(widget.orderId));
+    ref.invalidate(allCubeTestsProvider);
   }
 
   Future<void> _submit() async {
@@ -114,22 +189,46 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
       return;
     }
 
+    final api = ref.read(techApiProvider);
+    final quantity = _quantityController.text.trim();
+    final paths = [for (final f in _files) f.path!];
+    final t = widget.test;
+
     setState(() => _isSubmitting = true);
     try {
-      await ref
-          .read(techApiProvider)
-          .createCubeTest(
-            widget.orderId,
-            castingDate: _castingDate!,
-            quantity: _quantityController.text.trim(),
-            period: _period,
-            customDate: _customDate,
-            filePath: _filePath,
-            fileName: _fileName,
-          );
-      ref.invalidate(cubeTestsProvider(widget.orderId));
+      if (t == null) {
+        await api.createCubeTest(
+          widget.orderId,
+          castingDate: _castingDate!,
+          quantity: quantity,
+          period: _period,
+          customDate: _customDate,
+          filePaths: paths,
+        );
+      } else {
+        // Send only what changed, so an old 14/21-day period that is not
+        // touched is not re-sent (the server no longer accepts it).
+        final periodChanged = _period != t.period;
+        final custom = _period == CubeTestPeriod.custom;
+        await api.updateCubeTest(
+          widget.orderId,
+          t.id,
+          castingDate: DateUtils.isSameDay(_castingDate, t.castingDate)
+              ? null
+              : _castingDate,
+          quantity: quantity == t.quantity ? null : quantity,
+          period: periodChanged ? _period : null,
+          customDate:
+              custom &&
+                  (periodChanged || !DateUtils.isSameDay(_customDate, t.toDate))
+              ? _customDate
+              : null,
+          filePaths: paths,
+        );
+      }
+      _refreshLists();
       if (mounted) {
-        _toast('Cube test added successfully.');
+        _toast(_editing ? 'Cube test saved.' : 'Cube test added successfully.');
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -152,6 +251,7 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final testDate = _resolvedTestDate;
+    final fileCount = _existing.length + _files.length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -190,14 +290,16 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Add cube test',
+                            _editing ? 'Edit cube test' : 'Add cube test',
                             style: theme.textTheme.titleLarge?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                           Text(
-                            'Record a cast sample',
+                            _editing
+                                ? 'Change the sample or add files'
+                                : 'Record a cast sample',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.white.withValues(alpha: 0.72),
                             ),
@@ -376,31 +478,62 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                   ),
                   const SizedBox(height: AppSpacing.md),
 
-                  // ---------- Report upload ----------
+                  // ---------- Report files ----------
                   FadeSlideIn(
                     delay: const Duration(milliseconds: 140),
                     child: AppCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Test report',
-                            style: theme.textTheme.titleSmall,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Test reports',
+                                  style: theme.textTheme.titleSmall,
+                                ),
+                              ),
+                              if (fileCount > 0) CountBubble(fileCount),
+                            ],
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            'Optional — you can attach the result sheet later.',
+                            'Optional — add result sheets or photos now or '
+                            'any time later.',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: AppColors.textMuted,
                             ),
                           ),
                           const SizedBox(height: AppSpacing.md),
+                          for (final a in _existing)
+                            CubeFileRow.file(
+                              a,
+                              // A file known only from the legacy fileUrl has
+                              // no id, so it can be viewed but not removed.
+                              trailing: a.id.isEmpty
+                                  ? null
+                                  : _RemoveButton(
+                                      busy: _removing.contains(a.id),
+                                      onPressed: () => _removeExisting(a),
+                                    ),
+                            ),
+                          for (final f in _files)
+                            CubeFileRow(
+                              icon: f.extension?.toLowerCase() == 'pdf'
+                                  ? Icons.picture_as_pdf_outlined
+                                  : Icons.image_outlined,
+                              title: f.name,
+                              subtitle:
+                                  'New · ${(f.size / 1024 / 1024).toStringAsFixed(1)} MB',
+                              trailing: _RemoveButton(
+                                onPressed: () =>
+                                    setState(() => _files.remove(f)),
+                              ),
+                            ),
                           PressableScale(
-                            onTap: _pickFile,
+                            onTap: _pickFiles,
                             child: DottedBorder(
-                              color: _fileName != null
-                                  ? AppColors.primary
-                                  : AppColors.borderStrong,
+                              color: AppColors.borderStrong,
                               strokeWidth: 1.5,
                               dashPattern: const [6, 4],
                               borderType: BorderType.RRect,
@@ -408,60 +541,40 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                               child: Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: AppSpacing.xxxl,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _fileName != null
-                                      ? AppColors.blue50
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadius.lg,
-                                  ),
+                                  horizontal: AppSpacing.lg,
+                                  vertical: AppSpacing.xl,
                                 ),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Container(
-                                      width: 52,
-                                      height: 52,
-                                      decoration: BoxDecoration(
-                                        color: _fileName != null
-                                            ? AppColors.primary
-                                            : AppColors.blue50,
+                                      width: 44,
+                                      height: 44,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.blue50,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: Icon(
-                                        _fileName != null
-                                            ? Icons.description_rounded
-                                            : Icons.cloud_upload_outlined,
-                                        size: 24,
-                                        color: _fileName != null
-                                            ? Colors.white
-                                            : AppColors.blue400,
+                                      child: const Icon(
+                                        Icons.cloud_upload_outlined,
+                                        size: 22,
+                                        color: AppColors.blue400,
                                       ),
                                     ),
-                                    const SizedBox(height: AppSpacing.md),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.lg,
-                                      ),
-                                      child: Text(
-                                        _fileName ?? 'Upload a file',
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                              color: _fileName != null
-                                                  ? AppColors.primary
-                                                  : AppColors.textPrimary,
-                                            ),
-                                      ),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    Text(
+                                      fileCount == 0
+                                          ? 'Upload files'
+                                          : 'Add more files',
+                                      textAlign: TextAlign.center,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
-                                      'PDF, JPG or PNG up to 10 MB',
+                                      'PDF, JPG or PNG, up to 10 MB each',
+                                      textAlign: TextAlign.center,
                                       style: theme.textTheme.labelSmall
                                           ?.copyWith(
                                             color: AppColors.textMuted,
@@ -495,7 +608,11 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                               )
                             : const Icon(Icons.check_rounded, size: 20),
                         label: Text(
-                          _isSubmitting ? 'Submitting…' : 'Submit report',
+                          _isSubmitting
+                              ? 'Saving…'
+                              : _editing
+                              ? 'Save changes'
+                              : 'Submit report',
                         ),
                       ),
                     ),
@@ -508,6 +625,34 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
       ),
     );
   }
+}
+
+/// Remove a file from the list, or a spinner while the server removes it.
+class _RemoveButton extends StatelessWidget {
+  const _RemoveButton({required this.onPressed, this.busy = false});
+  final VoidCallback onPressed;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) => busy
+      ? const Padding(
+          padding: EdgeInsets.all(AppSpacing.sm),
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        )
+      : IconButton(
+          icon: const Icon(
+            Icons.close_rounded,
+            size: 18,
+            color: AppColors.danger,
+          ),
+          onPressed: onPressed,
+          tooltip: 'Remove',
+          visualDensity: VisualDensity.compact,
+        );
 }
 
 class _PeriodChip extends StatelessWidget {

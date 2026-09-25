@@ -207,6 +207,7 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
           .read(techApiProvider)
           .deleteCubeTest(widget.orderId, widget.test.id);
       ref.invalidate(cubeTestsProvider(widget.orderId));
+      ref.invalidate(allCubeTestsProvider);
     } catch (e) {
       if (mounted) {
         setState(() => _deleting = false);
@@ -216,6 +217,12 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
       }
     }
   }
+
+  /// The edit page adds files and changes the sample; lists refresh on save.
+  void _edit() => context.push(
+    '/orders/${widget.orderId}/cube-tests/add',
+    extra: widget.test,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -287,6 +294,12 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
             label: 'Quantity',
             value: t.quantity,
           ),
+          if (t.loggedBy != null)
+            DetailRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Logged by',
+              value: t.loggedBy!,
+            ),
           if (t.addedAtLabel.isNotEmpty)
             DetailRow(
               icon: Icons.schedule_rounded,
@@ -294,57 +307,175 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
               value: t.addedAtLabel,
             ),
           const SizedBox(height: AppSpacing.md),
-          GestureDetector(
-            onTap: t.hasFile
-                ? () => openServerFile(
-                    context,
-                    t.fileUrl!,
-                    title: 'Cube test report',
-                  )
-                : null,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm + 2,
-              ),
-              decoration: BoxDecoration(
-                color: t.hasFile ? AppColors.blue50 : AppColors.background,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    t.hasFile
-                        ? Icons.description_rounded
-                        : Icons.file_upload_outlined,
-                    size: 17,
-                    color: t.hasFile ? AppColors.primary : AppColors.textMuted,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      t.hasFile ? 'View report' : 'No report attached yet',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: t.hasFile
-                            ? AppColors.primary
-                            : AppColors.textMuted,
-                        fontWeight: t.hasFile
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  if (t.hasFile)
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                ],
+          CubeAttachments(test: t, onAdd: _edit),
+          // Below the files, not in the header: at 300dp a second header icon
+          // squeezes the due badge.
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _edit,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Edit or add files'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                visualDensity: VisualDensity.compact,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A test's files, shared by both cube test lists: none (tap [onAdd] to add
+/// some), one (opens straight away), or several (a sheet listing them all).
+class CubeAttachments extends StatelessWidget {
+  const CubeAttachments({super.key, required this.test, this.onAdd});
+  final CubeTest test;
+  final VoidCallback? onAdd;
+
+  void _showAll(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    backgroundColor: AppColors.surface,
+    builder: (ctx) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.gutter,
+          0,
+          AppSpacing.gutter,
+          AppSpacing.lg,
+        ),
+        children: [
+          Text(
+            'Test reports (${test.attachments.length})',
+            style: Theme.of(ctx).textTheme.titleSmall,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (final a in test.attachments) CubeFileRow.file(a),
+        ],
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final files = test.attachments;
+    if (files.isEmpty) {
+      return CubeFileRow(
+        icon: Icons.file_upload_outlined,
+        title: 'No report attached yet',
+        subtitle: onAdd == null ? '' : 'Tap to add files',
+        muted: true,
+        onTap: onAdd,
+      );
+    }
+    if (files.length == 1) return CubeFileRow.file(files.first);
+    return CubeFileRow(
+      icon: Icons.folder_copy_outlined,
+      title: '${files.length} report files',
+      subtitle: files.map((a) => a.displayName).join(', '),
+      onTap: () => _showAll(context),
+    );
+  }
+}
+
+/// One file line: icon, name and "who · when", ellipsised so a long file name
+/// never overflows a 300dp screen. [trailing] defaults to a chevron when
+/// tappable.
+class CubeFileRow extends StatelessWidget {
+  const CubeFileRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle = '',
+    this.onTap,
+    this.trailing,
+    this.muted = false,
+  }) : file = null;
+
+  /// A server file; tapping opens it in the in-app viewer.
+  CubeFileRow.file(CubeTestAttachment this.file, {super.key, this.trailing})
+    : icon = file.isPdf ? Icons.picture_as_pdf_outlined : Icons.image_outlined,
+      title = file.displayName,
+      subtitle = file.subtitle,
+      onTap = null,
+      muted = false;
+
+  final CubeTestAttachment? file;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = muted ? AppColors.textMuted : AppColors.primary;
+    final f = file;
+    final tap = f == null
+        ? onTap
+        : () => openServerFile(context, f.fileUrl, title: f.displayName);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: GestureDetector(
+        onTap: tap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: muted ? AppColors.background : AppColors.blue50,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (subtitle.isNotEmpty)
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              trailing ??
+                  (tap == null
+                      ? const SizedBox.shrink()
+                      : Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: color,
+                        )),
+            ],
+          ),
+        ),
       ),
     );
   }

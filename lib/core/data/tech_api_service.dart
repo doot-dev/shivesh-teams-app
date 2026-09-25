@@ -249,11 +249,11 @@ class TechApiService {
         .toList();
   }
 
-  /// Log a cube test, optionally attaching the result sheet in the same request.
+  /// Log a cube test, optionally attaching result sheets in the same request.
   ///
-  /// Sent as multipart/form-data because of the file: the backend's multer
-  /// middleware reads the attachment from the `file` field, and the scalar
-  /// fields must ride along as form fields rather than JSON.
+  /// Sent as multipart/form-data because of the files: the backend's multer
+  /// middleware reads them from the repeated `files` field (up to 10 per
+  /// request), and the scalar fields ride along as form fields.
   ///
   /// [customDate] is REQUIRED when [period] is `CubeTestPeriod.custom` and must
   /// not be in the future — the server rejects both cases with a 400.
@@ -263,8 +263,7 @@ class TechApiService {
     required String quantity,
     required CubeTestPeriod period,
     DateTime? customDate,
-    String? filePath,
-    String? fileName,
+    List<String> filePaths = const [],
   }) async {
     final form = FormData.fromMap({
       'castingDate': castingDate.toIso8601String(),
@@ -272,9 +271,8 @@ class TechApiService {
       'period': period.apiValue,
       if (period == CubeTestPeriod.custom && customDate != null)
         'customDate': customDate.toIso8601String(),
-      if (filePath != null)
-        'file': await MultipartFile.fromFile(filePath, filename: fileName),
     });
+    await _addFiles(form, filePaths);
 
     final res = await _dio.post('$_base/orders/$orderId/cube-test', data: form);
     return CubeTest.fromJson(
@@ -282,20 +280,57 @@ class TechApiService {
     );
   }
 
-  Future<void> deleteCubeTest(String orderId, String cubeTestId) async {
-    await _dio.delete('$_base/orders/$orderId/cube-test/$cubeTestId');
-  }
-
-  /// Attach or replace the result sheet on an existing cube test.
-  Future<void> uploadCubeTestFile(
+  /// Edit a cube test. Only non-null fields are sent; every path in
+  /// [filePaths] is ADDED as a new attachment — nothing is replaced.
+  Future<CubeTest> updateCubeTest(
     String orderId,
     String cubeTestId, {
-    required String filePath,
-    String? fileName,
+    DateTime? castingDate,
+    String? quantity,
+    CubeTestPeriod? period,
+    DateTime? customDate,
+    List<String> filePaths = const [],
   }) async {
     final form = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+      'castingDate': ?castingDate?.toIso8601String(),
+      'quantity': ?quantity,
+      'period': ?period?.apiValue,
+      'customDate': ?customDate?.toIso8601String(),
     });
-    await _dio.put('$_base/orders/$orderId/cube-test/$cubeTestId', data: form);
+    await _addFiles(form, filePaths);
+
+    final res = await _dio.put(
+      '$_base/orders/$orderId/cube-test/$cubeTestId',
+      data: form,
+    );
+    return CubeTest.fromJson(
+      (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+    );
+  }
+
+  /// Each path as one repeated `files` part. The filename is the path's
+  /// basename, which also sets the content type the server checks.
+  Future<void> _addFiles(FormData form, List<String> paths) async {
+    for (final p in paths) {
+      form.files.add(MapEntry('files', await MultipartFile.fromFile(p)));
+    }
+  }
+
+  /// Remove one attachment; returns the test with what is left.
+  Future<CubeTest> deleteCubeTestAttachment(
+    String orderId,
+    String cubeTestId,
+    String attachmentId,
+  ) async {
+    final res = await _dio.delete(
+      '$_base/orders/$orderId/cube-test/$cubeTestId/attachments/$attachmentId',
+    );
+    return CubeTest.fromJson(
+      (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+    );
+  }
+
+  Future<void> deleteCubeTest(String orderId, String cubeTestId) async {
+    await _dio.delete('$_base/orders/$orderId/cube-test/$cubeTestId');
   }
 }

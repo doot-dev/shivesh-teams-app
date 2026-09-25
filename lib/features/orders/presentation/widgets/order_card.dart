@@ -23,19 +23,6 @@ class OrderCard extends StatelessWidget {
   final bool highlight;
   final bool showTracker;
 
-  BadgeTone get _statusTone {
-    if (order.isDelayed) return BadgeTone.warning;
-    switch (order.step) {
-      case OrderStep.completed:
-        return BadgeTone.success;
-      case OrderStep.reached:
-      case OrderStep.dispatched:
-        return BadgeTone.info;
-      case OrderStep.confirmed:
-        return BadgeTone.neutral;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -106,11 +93,7 @@ class OrderCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                StatusBadge(
-                  label: statusLabel(order.status),
-                  tone: _statusTone,
-                  dense: true,
-                ),
+                StatusBadge.of(order.status),
               ],
             ),
           ),

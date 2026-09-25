@@ -252,15 +252,7 @@ class _DetailsTab extends StatelessWidget {
                         style: theme.textTheme.titleMedium,
                       ),
                     ),
-                    StatusBadge(
-                      label: statusLabel(order.status),
-                      tone: order.isDelayed
-                          ? BadgeTone.warning
-                          : order.step == OrderStep.completed
-                          ? BadgeTone.success
-                          : BadgeTone.info,
-                      dense: true,
-                    ),
+                    StatusBadge.of(order.status),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -437,6 +429,7 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
       ref.invalidate(orderByIdProvider(widget.orderId));
       ref.invalidate(activeOrdersProvider);
       ref.invalidate(pastOrdersProvider);
+      ref.invalidate(searchedOrdersProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Status updated to ${statusLabel(next)}')),
@@ -479,10 +472,19 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
           DeliveryTracker(status: widget.order.step),
           if (widget.order.isDelayed) ...[
             const SizedBox(height: AppSpacing.sm),
-            const StatusBadge(
-              label: 'Delayed — the next step clears it',
-              tone: BadgeTone.warning,
-              dense: true,
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const StatusBadge('Delayed', tone: Tone.warn),
+                Text(
+                  'The next step clears it',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
@@ -799,20 +801,19 @@ class _TmCardState extends ConsumerState<_TmCard> {
             // D13: the bill waits for this photo.
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Text(
-                  'Photo missing — the bill waits for it',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.red,
-                    fontWeight: FontWeight.w600,
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const StatusBadge('Photo missing', tone: Tone.err),
+                  Text(
+                    'The bill waits for it',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           if (tm.isReviewed)

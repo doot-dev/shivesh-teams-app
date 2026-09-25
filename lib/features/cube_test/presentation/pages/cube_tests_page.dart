@@ -247,7 +247,7 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
                   children: [
                     Text(t.period.label, style: theme.textTheme.titleSmall),
                     const SizedBox(height: 3),
-                    _DueChip(test: t),
+                    CubeDueBadge(test: t),
                   ],
                 ),
               ),
@@ -332,33 +332,16 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
   }
 }
 
-/// Shows whether the scheduled test date has arrived.
-class _DueChip extends StatelessWidget {
-  const _DueChip({required this.test});
+/// Whether the scheduled test date has arrived. Shared by both cube test lists.
+class CubeDueBadge extends StatelessWidget {
+  const CubeDueBadge({super.key, required this.test});
   final CubeTest test;
 
   @override
   Widget build(BuildContext context) {
     final days = test.daysUntilDue;
-
-    if (days > 0) {
-      return StatusBadge(
-        label: 'in $days day${days == 1 ? '' : 's'}',
-        tone: BadgeTone.info,
-        dense: true,
-      );
-    }
-    if (days == 0) {
-      return const StatusBadge(
-        label: 'Due today',
-        tone: BadgeTone.warning,
-        dense: true,
-      );
-    }
-    return const StatusBadge(
-      label: 'Tested',
-      tone: BadgeTone.success,
-      dense: true,
-    );
+    if (days > 0) return StatusBadge('in $days day${days == 1 ? '' : 's'}');
+    if (days == 0) return const StatusBadge('Due today', tone: Tone.warn);
+    return const StatusBadge('Tested', tone: Tone.ok);
   }
 }

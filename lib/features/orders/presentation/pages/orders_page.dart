@@ -4,45 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../core/widgets/month_bar.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/orders_providers.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_search_bar.dart';
-
-const _monthNames = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-/// Compact label for the active date window, e.g. "24 Aug", "1–5 Aug",
-/// "28 Aug – 3 Sep". Collapses same-day and same-month ranges so the pill
-/// stays narrow on a phone.
-String dateRangeLabel(DateTime? from, DateTime? to) {
-  String short(DateTime d) => '${d.day} ${_monthNames[d.month - 1]}';
-
-  if (from == null && to == null) return 'Date';
-  if (from != null && to != null) {
-    if (from.year == to.year && from.month == to.month && from.day == to.day) {
-      return short(from);
-    }
-    if (from.year == to.year && from.month == to.month) {
-      return '${from.day}–${to.day} ${_monthNames[to.month - 1]}';
-    }
-    return '${short(from)} – ${short(to)}';
-  }
-  if (from != null) return 'From ${short(from)}';
-  return 'Until ${short(to!)}';
-}
 
 /// Full order queue, split into Active and Past, with server-side search.
 ///
@@ -83,26 +49,6 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickDateRange() async {
-    final filter = ref.read(orderFilterProvider);
-    final now = DateTime.now();
-
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year - 2),
-      lastDate: DateTime(now.year + 2, 12, 31),
-      initialDateRange: filter.from != null && filter.to != null
-          ? DateTimeRange(start: filter.from!, end: filter.to!)
-          : null,
-      helpText: 'Filter by delivery date',
-      saveText: 'Apply',
-    );
-
-    if (picked != null && mounted) {
-      ref.read(orderFilterProvider.notifier).setRange(picked.start, picked.end);
-    }
   }
 
   @override
@@ -148,14 +94,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
                     const SizedBox(height: AppSpacing.md),
                     FadeSlideIn(
                       delay: const Duration(milliseconds: 50),
-                      child: OrderSearchBar(
-                        onQueryChanged: notifier.setQuery,
-                        onPickDates: _pickDateRange,
-                        onClearDates: notifier.clearDates,
-                        dateLabel: dateRangeLabel(filter.from, filter.to),
-                        hasDateFilter: filter.hasDate,
-                      ),
+                      child: OrderSearchBar(onQueryChanged: notifier.setQuery),
                     ),
+                    const SizedBox(height: AppSpacing.sm + 2),
+                    MonthBar(month: filter.month, onChanged: notifier.setMonth),
                     const SizedBox(height: AppSpacing.md),
                     // Pill-style segmented control rather than an underline —
                     // reads better on the gradient.
@@ -211,14 +153,11 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
                   filter: filter.copyWith(type: 'active'),
                   emptyIcon: Icons.assignment_outlined,
                   emptyTitle: 'No active orders',
-                  emptyMessage:
-                      'Assignments dispatched to you will show up here.',
                 ),
                 _OrderListView(
                   filter: filter.copyWith(type: 'past'),
                   emptyIcon: Icons.history_rounded,
                   emptyTitle: 'No past orders',
-                  emptyMessage: 'Completed deliveries are archived here.',
                   showTracker: false,
                 ),
               ],
@@ -243,10 +182,7 @@ class _FilterSummary extends ConsumerWidget {
     final results = ref.watch(searchedOrdersProvider(filter));
     final count = results.asData?.value.length;
 
-    final parts = <String>[
-      if (filter.hasQuery) '"${filter.query.trim()}"',
-      if (filter.hasDate) dateRangeLabel(filter.from, filter.to),
-    ];
+    final parts = ['"${filter.query.trim()}"', monthLabel(filter.month)];
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -293,24 +229,16 @@ class _OrderListView extends ConsumerWidget {
     required this.filter,
     required this.emptyIcon,
     required this.emptyTitle,
-    required this.emptyMessage,
     this.showTracker = true,
   });
 
   final OrderFilter filter;
   final IconData emptyIcon;
   final String emptyTitle;
-  final String emptyMessage;
   final bool showTracker;
 
   void _refresh(WidgetRef ref) {
     ref.invalidate(searchedOrdersProvider(filter));
-    // The unfiltered providers back the no-filter case, so refresh those too.
-    if (!filter.isActive) {
-      ref.invalidate(
-        filter.type == 'past' ? pastOrdersProvider : activeOrdersProvider,
-      );
-    }
   }
 
   @override
@@ -357,8 +285,10 @@ class _OrderListView extends ConsumerWidget {
                   icon: searching ? Icons.search_off_rounded : emptyIcon,
                   title: searching ? 'No matching orders' : emptyTitle,
                   message: searching
-                      ? 'Try a different name, order number or date.'
-                      : emptyMessage,
+                      ? 'Nothing in ${monthLabel(filter.month)}. Try a '
+                            'different name, order number or month.'
+                      : 'Nothing for ${monthLabel(filter.month)}. '
+                            'Use ‹ › above to see another month.',
                 ),
               ],
             );

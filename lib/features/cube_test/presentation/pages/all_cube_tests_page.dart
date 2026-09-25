@@ -5,11 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
-import '../../../orders/presentation/pages/orders_page.dart'
-    show dateRangeLabel;
+import '../../../../core/widgets/month_bar.dart';
 import '../../../orders/presentation/widgets/order_search_bar.dart';
 import '../../data/models/cube_test_model.dart';
 import '../../providers/cube_test_providers.dart';
+import 'cube_tests_page.dart' show CubeDueBadge;
 
 /// Every cube test report across all orders this technician is assigned to.
 ///
@@ -18,7 +18,7 @@ import '../../providers/cube_test_providers.dart';
 /// it is a tab root, not a pushed page.
 ///
 /// All filtering is server-side (see `allCubeTestsProvider`); the search box,
-/// date range and status chips write into one shared [CubeTestFilter] which
+/// casting month and status chips write into one shared [CubeTestFilter] which
 /// keys the request.
 class AllCubeTestsPage extends ConsumerStatefulWidget {
   const AllCubeTestsPage({super.key});
@@ -28,28 +28,6 @@ class AllCubeTestsPage extends ConsumerStatefulWidget {
 }
 
 class _AllCubeTestsPageState extends ConsumerState<AllCubeTestsPage> {
-  Future<void> _pickDateRange() async {
-    final filter = ref.read(cubeTestFilterProvider);
-    final now = DateTime.now();
-
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year - 2),
-      lastDate: DateTime(now.year + 2, 12, 31),
-      initialDateRange: filter.from != null && filter.to != null
-          ? DateTimeRange(start: filter.from!, end: filter.to!)
-          : null,
-      helpText: 'Filter by casting date',
-      saveText: 'Apply',
-    );
-
-    if (picked != null && mounted) {
-      ref
-          .read(cubeTestFilterProvider.notifier)
-          .setRange(picked.start, picked.end);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -129,11 +107,9 @@ class _AllCubeTestsPageState extends ConsumerState<AllCubeTestsPage> {
                     OrderSearchBar(
                       hintText: 'Search order, project or client',
                       onQueryChanged: notifier.setQuery,
-                      onPickDates: _pickDateRange,
-                      dateLabel: dateRangeLabel(filter.from, filter.to),
-                      hasDateFilter: filter.hasDate,
-                      onClearDates: filter.hasDate ? notifier.clearDates : null,
                     ),
+                    const SizedBox(height: AppSpacing.sm + 2),
+                    MonthBar(month: filter.month, onChanged: notifier.setMonth),
                     const SizedBox(height: AppSpacing.md),
                     _StatusChips(
                       selected: filter.status,
@@ -176,11 +152,11 @@ class _AllCubeTestsPageState extends ConsumerState<AllCubeTestsPage> {
                     icon: Icons.science_outlined,
                     title: filter.isActive
                         ? 'No matching reports'
-                        : 'No cube tests yet',
+                        : 'No cube tests in ${monthLabel(filter.month)}',
                     message: filter.isActive
-                        ? 'Try a different search, date range or status.'
-                        : 'Cube tests you log against your orders will all '
-                              'appear here, newest first.',
+                        ? 'Try a different search, status or month.'
+                        : 'Tests show here by casting date. '
+                              'Use ‹ › above to see another month.',
                   );
                 }
                 return RefreshIndicator(
@@ -231,7 +207,9 @@ class _StatusChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Row(
+    // Wrap: at 300dp with large text the third chip drops to a new line.
+    return Wrap(
+      runSpacing: AppSpacing.sm,
       children: CubeTestStatusFilter.values.map((status) {
         final active = status == selected;
         return Padding(
@@ -374,7 +352,7 @@ class _CubeTestEntryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _DueChip(test: t),
+              CubeDueBadge(test: t),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -452,38 +430,6 @@ class _CubeTestEntryCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Whether the scheduled test date has arrived.
-class _DueChip extends StatelessWidget {
-  const _DueChip({required this.test});
-
-  final CubeTest test;
-
-  @override
-  Widget build(BuildContext context) {
-    final days = test.daysUntilDue;
-
-    if (days > 0) {
-      return StatusBadge(
-        label: 'in $days day${days == 1 ? '' : 's'}',
-        tone: BadgeTone.info,
-        dense: true,
-      );
-    }
-    if (days == 0) {
-      return const StatusBadge(
-        label: 'Due today',
-        tone: BadgeTone.warning,
-        dense: true,
-      );
-    }
-    return const StatusBadge(
-      label: 'Tested',
-      tone: BadgeTone.success,
-      dense: true,
     );
   }
 }

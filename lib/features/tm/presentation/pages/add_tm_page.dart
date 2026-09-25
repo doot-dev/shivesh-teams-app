@@ -246,7 +246,7 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'supported formats: PDF, JPG, PDF up to 10 MB',
+                        'PDF, JPG or PNG, up to 10 MB',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppColors.textMuted,
                           fontSize: 11,

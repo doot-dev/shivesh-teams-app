@@ -180,7 +180,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                           ? 'Please enter your username'
                                           : null,
                                       decoration: const InputDecoration(
-                                        hintText: 'e.g. demo.tech',
+                                        hintText: 'e.g. rahul.jadhav',
                                         prefixIcon: Icon(
                                           Icons.person_outline_rounded,
                                         ),

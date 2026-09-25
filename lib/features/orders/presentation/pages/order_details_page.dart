@@ -8,6 +8,7 @@ import '../../../../core/providers/tech_api_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../core/widgets/file_viewer.dart';
 import '../../../../core/widgets/delivery_tracker.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/orders_providers.dart';
@@ -792,10 +793,22 @@ class _TmCardState extends ConsumerState<_TmCard> {
               value: tm.addedAtLabel,
             ),
           if (tm.hasChallanFile)
-            const DetailRow(
+            DetailRow(
               icon: Icons.attach_file_rounded,
               label: 'Challan photo',
               value: 'Attached',
+              trailing: TextButton(
+                onPressed: () => openServerFile(
+                  context,
+                  tm.challanUrl!,
+                  title: 'Challan ${tm.challanNo}',
+                ),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: AppColors.primary,
+                ),
+                child: const Text('View'),
+              ),
             )
           else if (!tm.isRejected)
             // D13: the bill waits for this photo.

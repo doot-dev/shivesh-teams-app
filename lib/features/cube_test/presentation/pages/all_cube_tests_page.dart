@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../core/widgets/file_viewer.dart';
 import '../../../../core/widgets/month_bar.dart';
 import '../../../orders/presentation/widgets/order_search_bar.dart';
 import '../../data/models/cube_test_model.dart';
@@ -390,42 +391,53 @@ class _CubeTestEntryCard extends StatelessWidget {
               value: t.addedAtLabel,
             ),
           const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm + 2,
-            ),
-            decoration: BoxDecoration(
-              color: t.hasFile ? AppColors.blue50 : AppColors.background,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  t.hasFile
-                      ? Icons.description_rounded
-                      : Icons.file_upload_outlined,
-                  size: 17,
-                  color: t.hasFile ? AppColors.primary : AppColors.textMuted,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    t.hasFile ? 'Report attached' : 'No report attached yet',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: t.hasFile
-                          ? AppColors.primary
-                          : AppColors.textMuted,
-                      fontWeight: t.hasFile ? FontWeight.w700 : FontWeight.w500,
+          GestureDetector(
+            onTap: t.hasFile
+                ? () => openServerFile(
+                    context,
+                    t.fileUrl!,
+                    title: 'Cube test report',
+                  )
+                : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm + 2,
+              ),
+              decoration: BoxDecoration(
+                color: t.hasFile ? AppColors.blue50 : AppColors.background,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    t.hasFile
+                        ? Icons.description_rounded
+                        : Icons.file_upload_outlined,
+                    size: 17,
+                    color: t.hasFile ? AppColors.primary : AppColors.textMuted,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      t.hasFile ? 'View report' : 'No report attached yet',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: t.hasFile
+                            ? AppColors.primary
+                            : AppColors.textMuted,
+                        fontWeight: t.hasFile
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: AppColors.textMuted,
-                ),
-              ],
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ),
             ),
           ),
         ],

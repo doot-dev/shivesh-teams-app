@@ -4,6 +4,7 @@ import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 import '../providers/storage_providers.dart';
 import 'auth_events.dart';
+import 'offline_cache.dart';
 
 class DioClient {
   Dio create({
@@ -21,6 +22,9 @@ class DioClient {
     if (storage != null) {
       dio.interceptors.add(_AuthInterceptor(storage, authEvents));
     }
+
+    // After auth (so the token is on the request), before logging.
+    dio.interceptors.add(OfflineCacheInterceptor());
     dio.interceptors.add(
       PrettyDioLogger(requestBody: true, responseBody: true, compact: true),
     );

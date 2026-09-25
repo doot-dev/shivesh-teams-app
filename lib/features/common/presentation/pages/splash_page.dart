@@ -30,12 +30,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     duration: const Duration(seconds: 6),
   )..repeat(reverse: true);
 
-  late final Animation<double> _scale = Tween<double>(
-    begin: 0.86,
-    end: 1,
-  ).animate(
-    CurvedAnimation(parent: _entranceController, curve: Curves.easeOutBack),
-  );
+  late final Animation<double> _scale = Tween<double>(begin: 0.86, end: 1)
+      .animate(
+        CurvedAnimation(parent: _entranceController, curve: Curves.easeOutBack),
+      );
 
   late final Animation<double> _fade = CurvedAnimation(
     parent: _entranceController,
@@ -72,7 +70,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
               AnimatedBuilder(
                 animation: _ambientController,
                 builder: (context, _) {
-                  final t = Curves.easeInOut.transform(_ambientController.value);
+                  final t = Curves.easeInOut.transform(
+                    _ambientController.value,
+                  );
                   return Stack(
                     children: [
                       Positioned(
@@ -167,12 +167,12 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                       SizedBox(
                         width: 120,
                         child: ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.pill),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                           child: LinearProgressIndicator(
                             minHeight: 3,
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.16),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.16,
+                            ),
                             color: Colors.white.withValues(alpha: 0.85),
                           ),
                         ),

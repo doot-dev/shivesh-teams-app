@@ -5,7 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
-import '../../../orders/presentation/pages/orders_page.dart' show dateRangeLabel;
+import '../../../orders/presentation/pages/orders_page.dart'
+    show dateRangeLabel;
 import '../../../orders/presentation/widgets/order_search_bar.dart';
 import '../../data/models/cube_test_model.dart';
 import '../../providers/cube_test_providers.dart';
@@ -179,7 +180,7 @@ class _AllCubeTestsPageState extends ConsumerState<AllCubeTestsPage> {
                     message: filter.isActive
                         ? 'Try a different search, date range or status.'
                         : 'Cube tests you log against your orders will all '
-                            'appear here, newest first.',
+                              'appear here, newest first.',
                   );
                 }
                 return RefreshIndicator(
@@ -246,7 +247,9 @@ class _StatusChips extends StatelessWidget {
                 vertical: 8,
               ),
               decoration: BoxDecoration(
-                color: active ? Colors.white : Colors.white.withValues(alpha: 0.18),
+                color: active
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 border: Border.all(
                   color: Colors.white.withValues(alpha: active ? 1 : 0.42),
@@ -432,7 +435,9 @@ class _CubeTestEntryCard extends StatelessWidget {
                   child: Text(
                     t.hasFile ? 'Report attached' : 'No report attached yet',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: t.hasFile ? AppColors.primary : AppColors.textMuted,
+                      color: t.hasFile
+                          ? AppColors.primary
+                          : AppColors.textMuted,
                       fontWeight: t.hasFile ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),

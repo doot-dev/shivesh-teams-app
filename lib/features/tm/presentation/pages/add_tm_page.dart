@@ -29,7 +29,10 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
   TimeOfDay? _arrivalTime;
 
   Future<void> _pickOptional(void Function(TimeOfDay) set) async {
-    final picked = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
     if (picked != null) setState(() => set(picked));
   }
 
@@ -76,7 +79,7 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
     );
@@ -106,14 +109,20 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
 
     setState(() => _isSubmitting = true);
     try {
-      await ref.read(techApiProvider).createTm(
+      await ref
+          .read(techApiProvider)
+          .createTm(
             widget.orderId,
             truckNo: _truckNoController.text.trim(),
             qty: _quantityController.text.trim(),
             batchStartTime: _formatTime(_startTime!),
             batchEndTime: _formatTime(_endTime!),
-            dispatchTime: _dispatchTime == null ? null : _formatTime(_dispatchTime!),
-            arrivalTime: _arrivalTime == null ? null : _formatTime(_arrivalTime!),
+            dispatchTime: _dispatchTime == null
+                ? null
+                : _formatTime(_dispatchTime!),
+            arrivalTime: _arrivalTime == null
+                ? null
+                : _formatTime(_arrivalTime!),
             challanNo: _challanNoController.text.trim(),
             challanFilePath: _uploadedFilePath,
             challanFileName: _uploadedFileName,
@@ -127,9 +136,9 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to submit: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -232,8 +241,11 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.upload_file_outlined,
-                          size: 36, color: AppColors.textMuted),
+                      const Icon(
+                        Icons.upload_file_outlined,
+                        size: 36,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(height: 10),
                       Text(
                         _uploadedFileName ?? 'Upload a file',
@@ -267,7 +279,9 @@ class _AddTmPageState extends ConsumerState<AddTmPage> {
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Text('Submit'),
               ),
@@ -287,10 +301,9 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(context)
-          .textTheme
-          .titleMedium
-          ?.copyWith(fontWeight: FontWeight.w700),
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
     );
   }
 }
@@ -303,10 +316,9 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(context)
-          .textTheme
-          .bodySmall
-          ?.copyWith(color: AppColors.textMuted),
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
     );
   }
 }
@@ -334,8 +346,10 @@ class _FormField extends StatelessWidget {
         hintText: hint,
         filled: true,
         fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
@@ -354,11 +368,7 @@ class _FormField extends StatelessWidget {
 }
 
 class _TimePicker extends StatelessWidget {
-  const _TimePicker({
-    required this.hint,
-    required this.onTap,
-    this.value,
-  });
+  const _TimePicker({required this.hint, required this.onTap, this.value});
   final String hint;
   final String? value;
   final VoidCallback onTap;
@@ -380,14 +390,17 @@ class _TimePicker extends StatelessWidget {
               child: Text(
                 value ?? hint,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: value != null
-                          ? AppColors.textPrimary
-                          : AppColors.textMuted,
-                    ),
+                  color: value != null
+                      ? AppColors.textPrimary
+                      : AppColors.textMuted,
+                ),
               ),
             ),
-            const Icon(Icons.access_time_outlined,
-                size: 20, color: AppColors.textMuted),
+            const Icon(
+              Icons.access_time_outlined,
+              size: 20,
+              color: AppColors.textMuted,
+            ),
           ],
         ),
       ),

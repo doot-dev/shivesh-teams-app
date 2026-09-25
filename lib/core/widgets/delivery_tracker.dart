@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../../features/orders/data/models/order_models.dart';
 
-/// Horizontal delivery tracker (Confirmed → On the way → Reached).
+/// Horizontal order tracker (Confirmed → Dispatched → Reached → Completed).
 ///
-/// The steps are read straight from `DeliveryStatus.values`, so this widget
+/// The steps are read straight from `OrderStep.values`, so this widget
 /// never needs editing when a step is added or removed — change the enum and
 /// the dots, connectors and labels all follow.
 ///
@@ -19,13 +19,13 @@ class DeliveryTracker extends StatelessWidget {
     this.compact = false,
   });
 
-  final DeliveryStatus status;
+  final OrderStep status;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const steps = DeliveryStatus.values;
+    const steps = OrderStep.values;
     final currentIndex = steps.indexOf(status);
 
     return Column(
@@ -60,8 +60,8 @@ class DeliveryTracker extends StatelessWidget {
                 textAlign: index == 0
                     ? TextAlign.left
                     : index == steps.length - 1
-                        ? TextAlign.right
-                        : TextAlign.center,
+                    ? TextAlign.right
+                    : TextAlign.center,
                 style: theme.textTheme.labelSmall?.copyWith(
                   fontSize: compact ? 9 : 10,
                   color: isDone ? AppColors.textSecondary : AppColors.textMuted,
@@ -115,7 +115,11 @@ class _Dot extends StatelessWidget {
             : null,
       ),
       child: done
-          ? Icon(Icons.check_rounded, size: compact ? 10 : 12, color: Colors.white)
+          ? Icon(
+              Icons.check_rounded,
+              size: compact ? 10 : 12,
+              color: Colors.white,
+            )
           : null,
     );
   }
@@ -159,11 +163,11 @@ class _Connector extends StatelessWidget {
 class DeliveryProgressBar extends StatelessWidget {
   const DeliveryProgressBar({super.key, required this.status});
 
-  final DeliveryStatus status;
+  final OrderStep status;
 
   @override
   Widget build(BuildContext context) {
-    final done = status == DeliveryStatus.reached;
+    final done = status == OrderStep.completed;
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: TweenAnimationBuilder<double>(

@@ -72,8 +72,9 @@ class AuthState {
       status: status ?? this.status,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
-      sessionMessage:
-          clearSessionMessage ? null : (sessionMessage ?? this.sessionMessage),
+      sessionMessage: clearSessionMessage
+          ? null
+          : (sessionMessage ?? this.sessionMessage),
     );
   }
 }
@@ -337,4 +338,6 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 }
 
-final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
+);

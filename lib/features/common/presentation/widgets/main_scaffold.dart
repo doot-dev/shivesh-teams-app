@@ -9,23 +9,36 @@ import '../../../../core/theme/app_colors.dart';
 /// just recolouring it — the pill is the only moving part, which keeps the bar
 /// calm while still reading as responsive.
 class MainScaffold extends StatelessWidget {
-  const MainScaffold({
-    super.key,
-    required this.child,
-    required this.location,
-  });
+  const MainScaffold({super.key, required this.child, required this.location});
 
   final Widget child;
   final String location;
 
   static const _destinations = [
-    _NavDest('/home', Icons.grid_view_rounded, Icons.grid_view_outlined, 'Home'),
-    _NavDest('/orders', Icons.local_shipping_rounded,
-        Icons.local_shipping_outlined, 'Orders'),
-    _NavDest('/cube-tests', Icons.science_rounded, Icons.science_outlined,
-        'Cube tests'),
-    _NavDest('/profile', Icons.person_rounded, Icons.person_outline_rounded,
-        'Profile'),
+    _NavDest(
+      '/home',
+      Icons.grid_view_rounded,
+      Icons.grid_view_outlined,
+      'Home',
+    ),
+    _NavDest(
+      '/orders',
+      Icons.local_shipping_rounded,
+      Icons.local_shipping_outlined,
+      'Orders',
+    ),
+    _NavDest(
+      '/cube-tests',
+      Icons.science_rounded,
+      Icons.science_outlined,
+      'Cube tests',
+    ),
+    _NavDest(
+      '/profile',
+      Icons.person_rounded,
+      Icons.person_outline_rounded,
+      'Profile',
+    ),
   ];
 
   int _locationToIndex(String loc) {
@@ -138,11 +151,10 @@ class _NavItem extends StatelessWidget {
               duration: AppMotion.mid,
               curve: AppMotion.ease,
               style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                    fontSize: 10.5,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color:
-                        selected ? AppColors.primary : AppColors.textMuted,
-                  ),
+                fontSize: 10.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? AppColors.primary : AppColors.textMuted,
+              ),
               child: Text(dest.label),
             ),
           ],

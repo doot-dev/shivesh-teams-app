@@ -65,15 +65,10 @@ class TechApiService {
     );
   }
 
-  /// Move an order along its delivery track.
-  ///
-  /// [deliveryStatus] must be a backend enum value — use
-  /// `DeliveryStatus.apiValue`, not the Dart enum name.
-  Future<void> updateStatus(String orderId, String deliveryStatus) async {
-    await _dio.put(
-      '$_base/orders/$orderId/status',
-      data: {'deliveryStatus': deliveryStatus},
-    );
+  /// Move the order along: one of [fieldStatuses] (DISPATCHED, DELAYED,
+  /// REACHED, COMPLETED). The server checks the step is allowed.
+  Future<void> updateStatus(String orderId, String status) async {
+    await _dio.put('$_base/orders/$orderId/status', data: {'status': status});
   }
 
   Future<List<Comment>> getComments(String orderId) async {
@@ -281,10 +276,7 @@ class TechApiService {
         'file': await MultipartFile.fromFile(filePath, filename: fileName),
     });
 
-    final res = await _dio.post(
-      '$_base/orders/$orderId/cube-test',
-      data: form,
-    );
+    final res = await _dio.post('$_base/orders/$orderId/cube-test', data: form);
     return CubeTest.fromJson(
       (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
     );
@@ -304,9 +296,6 @@ class TechApiService {
     final form = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath, filename: fileName),
     });
-    await _dio.put(
-      '$_base/orders/$orderId/cube-test/$cubeTestId',
-      data: form,
-    );
+    await _dio.put('$_base/orders/$orderId/cube-test/$cubeTestId', data: form);
   }
 }

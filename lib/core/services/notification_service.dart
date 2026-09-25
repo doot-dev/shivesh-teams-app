@@ -68,7 +68,8 @@ class NotificationService {
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(_androidChannel);
 
     const initSettings = InitializationSettings(
@@ -127,8 +128,9 @@ class NotificationService {
 
   Future<void> _registerToken(String token) async {
     _currentToken = token;
-    final platform =
-        defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
+    final platform = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'ios'
+        : 'android';
     try {
       await _apiService.registerFcmToken(token, platform);
     } catch (_) {

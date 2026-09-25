@@ -30,9 +30,9 @@ class HomePage extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(activeOrdersProvider);
           ref.invalidate(technicianProfileProvider);
-          await ref.read(activeOrdersProvider.future).catchError(
-                (_) => <FieldOrder>[],
-              );
+          await ref
+              .read(activeOrdersProvider.future)
+              .catchError((_) => <FieldOrder>[]);
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
@@ -122,9 +122,7 @@ class HomePage extends ConsumerWidget {
             activeOrdersAsync.when(
               loading: () => const SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.gutter,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
                   child: Column(
                     children: [
                       OrderCardSkeleton(),
@@ -136,7 +134,8 @@ class HomePage extends ConsumerWidget {
               ),
               error: (e, _) => SliverToBoxAdapter(
                 child: ErrorStateView(
-                  message: 'We could not load your orders. Pull to refresh or '
+                  message:
+                      'We could not load your orders. Pull to refresh or '
                       'try again.',
                   compact: true,
                   onRetry: () => ref.invalidate(activeOrdersProvider),
@@ -203,11 +202,9 @@ class _HomeHero extends ConsumerWidget {
     final orders = activeOrdersAsync.value ?? const <FieldOrder>[];
 
     final inTransit = orders
-        .where((o) => o.deliveryStatus == DeliveryStatus.onTheWay)
+        .where((o) => o.step == OrderStep.dispatched)
         .length;
-    final reached = orders
-        .where((o) => o.deliveryStatus == DeliveryStatus.reached)
-        .length;
+    final reached = orders.where((o) => o.step == OrderStep.reached).length;
 
     return Container(
       decoration: const BoxDecoration(

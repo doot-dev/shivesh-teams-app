@@ -29,10 +29,10 @@ class _RemindersNotifier extends AsyncNotifier<List<AppNotification>> {
 
 final notificationsProvider =
     AsyncNotifierProvider<_NotificationsNotifier, List<AppNotification>>(
-  _NotificationsNotifier.new,
-);
+      _NotificationsNotifier.new,
+    );
 
 final remindersProvider =
     AsyncNotifierProvider<_RemindersNotifier, List<AppNotification>>(
-  _RemindersNotifier.new,
-);
+      _RemindersNotifier.new,
+    );

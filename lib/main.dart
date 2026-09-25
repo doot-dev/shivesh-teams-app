@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_router.dart';
 import 'core/config/app_theme.dart';
+import 'core/widgets/app_frame.dart';
 import 'core/services/notification_service.dart';
 import 'firebase_options.dart';
 
@@ -28,6 +29,8 @@ class FieldTechApp extends ConsumerWidget {
       theme: AppTheme.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      // Tablet column, font cap and the offline strip for every screen.
+      builder: (context, child) => AppFrame(child: child!),
     );
   }
 }

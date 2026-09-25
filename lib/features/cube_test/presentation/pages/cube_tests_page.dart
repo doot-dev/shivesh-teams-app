@@ -56,8 +56,10 @@ class CubeTestsPage extends ConsumerWidget {
                   children: [
                     IconButton(
                       onPressed: () => context.pop(),
-                      icon: const Icon(Icons.arrow_back_rounded,
-                          color: Colors.white),
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: Colors.white,
+                      ),
                       tooltip: 'Back',
                     ),
                     Expanded(
@@ -93,8 +95,11 @@ class CubeTestsPage extends ConsumerWidget {
                         color: Colors.white.withValues(alpha: 0.16),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.science_rounded,
-                          color: Colors.white, size: 21),
+                      child: const Icon(
+                        Icons.science_rounded,
+                        color: Colors.white,
+                        size: 21,
+                      ),
                     ),
                   ],
                 ),
@@ -149,10 +154,7 @@ class CubeTestsPage extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.md),
                     itemBuilder: (context, i) => StaggeredItem(
                       index: i,
-                      child: _CubeTestCard(
-                        test: tests[i],
-                        orderId: orderId,
-                      ),
+                      child: _CubeTestCard(test: tests[i], orderId: orderId),
                     ),
                   ),
                 );
@@ -207,9 +209,9 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
     } catch (e) {
       if (mounted) {
         setState(() => _deleting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not delete: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not delete: $e')));
       }
     }
   }
@@ -232,8 +234,11 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
                   color: AppColors.blue50,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: const Icon(Icons.science_rounded,
-                    size: 20, color: AppColors.primary),
+                child: const Icon(
+                  Icons.science_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -253,8 +258,11 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded,
-                          size: 20, color: AppColors.danger),
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        size: 20,
+                        color: AppColors.danger,
+                      ),
                       onPressed: _delete,
                       tooltip: 'Delete report',
                       visualDensity: VisualDensity.compact,
@@ -308,10 +316,10 @@ class _CubeTestCardState extends ConsumerState<_CubeTestCard> {
                   child: Text(
                     t.hasFile ? 'Report attached' : 'No report attached yet',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color:
-                          t.hasFile ? AppColors.primary : AppColors.textMuted,
-                      fontWeight:
-                          t.hasFile ? FontWeight.w700 : FontWeight.w500,
+                      color: t.hasFile
+                          ? AppColors.primary
+                          : AppColors.textMuted,
+                      fontWeight: t.hasFile ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                 ),

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/tech_api_provider.dart';
@@ -252,8 +253,10 @@ class _DetailsTab extends StatelessWidget {
                       ),
                     ),
                     StatusBadge(
-                      label: order.deliveryStatus.label,
-                      tone: order.deliveryStatus == DeliveryStatus.reached
+                      label: statusLabel(order.status),
+                      tone: order.isDelayed
+                          ? BadgeTone.warning
+                          : order.step == OrderStep.completed
                           ? BadgeTone.success
                           : BadgeTone.info,
                       dense: true,
@@ -268,6 +271,26 @@ class _DetailsTab extends StatelessWidget {
                   label: 'Client',
                   value: order.clientName,
                 ),
+                if (order.placedBy != null)
+                  DetailRow(
+                    icon: Icons.badge_outlined,
+                    label: 'Placed by',
+                    value: order.placedBy!,
+                    trailing: order.placedByPhone == null
+                        ? null
+                        : IconButton(
+                            tooltip: 'Call ${order.placedByPhone}',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(
+                              Icons.call_rounded,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            onPressed: () => launchUrl(
+                              Uri.parse('tel:${order.placedByPhone}'),
+                            ),
+                          ),
+                  ),
                 DetailRow(
                   icon: Icons.inventory_2_outlined,
                   label: 'Product',
@@ -390,11 +413,9 @@ class _DetailsTab extends StatelessWidget {
   }
 }
 
-/// Lets the technician advance the order's delivery status.
-///
-/// Sends `DeliveryStatus.apiValue` (ASSIGNED / IN_TRANSIT / DELIVERED), never
-/// the Dart enum name — the backend validates against its own enum and rejects
-/// anything else with a 400.
+/// Lets the technician move the order: Dispatched, Delayed, Reached, Completed
+/// (one status per order). The server refuses a step that is not allowed
+/// from the current one, and that message is shown as is.
 class _DeliveryStatusCard extends ConsumerStatefulWidget {
   const _DeliveryStatusCard({required this.order, required this.orderId});
   final FieldOrder order;
@@ -408,26 +429,24 @@ class _DeliveryStatusCard extends ConsumerStatefulWidget {
 class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
   bool _saving = false;
 
-  Future<void> _update(DeliveryStatus next) async {
-    if (next == widget.order.deliveryStatus) return;
+  Future<void> _update(String next) async {
+    if (next == widget.order.status) return;
     setState(() => _saving = true);
     try {
-      await ref
-          .read(techApiProvider)
-          .updateStatus(widget.orderId, next.apiValue);
+      await ref.read(techApiProvider).updateStatus(widget.orderId, next);
       ref.invalidate(orderByIdProvider(widget.orderId));
       ref.invalidate(activeOrdersProvider);
       ref.invalidate(pastOrdersProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Status updated to ${next.label}')),
+          SnackBar(content: Text('Status updated to ${statusLabel(next)}')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not update status: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_serverMessage(e, 'Could not update status'))),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -437,7 +456,7 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final current = widget.order.deliveryStatus;
+    final current = widget.order.status;
 
     return AppCard(
       child: Column(
@@ -446,10 +465,7 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  'Delivery status',
-                  style: theme.textTheme.titleSmall,
-                ),
+                child: Text('Order status', style: theme.textTheme.titleSmall),
               ),
               if (_saving)
                 const SizedBox(
@@ -460,7 +476,15 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          DeliveryTracker(status: current),
+          DeliveryTracker(status: widget.order.step),
+          if (widget.order.isDelayed) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const StatusBadge(
+              label: 'Delayed — the next step clears it',
+              tone: BadgeTone.warning,
+              dense: true,
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Tap to update',
@@ -472,7 +496,7 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
-            children: DeliveryStatus.values.map((s) {
+            children: fieldStatuses.map((s) {
               final selected = s == current;
               return PressableScale(
                 onTap: _saving ? null : () => _update(s),
@@ -491,7 +515,7 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
                     boxShadow: selected ? AppColors.shadowSm : null,
                   ),
                   child: Text(
-                    s.label,
+                    statusLabel(s),
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: selected ? Colors.white : AppColors.textSecondary,
                       fontWeight: FontWeight.w700,

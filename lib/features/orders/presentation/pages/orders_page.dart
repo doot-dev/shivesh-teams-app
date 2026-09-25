@@ -10,8 +10,18 @@ import '../widgets/order_card.dart';
 import '../widgets/order_search_bar.dart';
 
 const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 /// Compact label for the active date window, e.g. "24 Aug", "1–5 Aug",
@@ -47,8 +57,10 @@ class OrdersPage extends ConsumerStatefulWidget {
 
 class _OrdersPageState extends ConsumerState<OrdersPage>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController =
-      TabController(length: 2, vsync: this);
+  late final TabController _tabController = TabController(
+    length: 2,
+    vsync: this,
+  );
 
   @override
   void initState() {
@@ -158,15 +170,18 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
                         child: TabBar(
                           controller: _tabController,
                           labelColor: AppColors.primaryDark,
-                          unselectedLabelColor:
-                              Colors.white.withValues(alpha: 0.85),
-                          labelStyle: theme.textTheme.labelLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                          unselectedLabelColor: Colors.white.withValues(
+                            alpha: 0.85,
+                          ),
+                          labelStyle: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                           unselectedLabelStyle: theme.textTheme.labelLarge,
                           dividerColor: Colors.transparent,
                           indicatorSize: TabBarIndicatorSize.tab,
-                          splashBorderRadius:
-                              BorderRadius.circular(AppRadius.pill),
+                          splashBorderRadius: BorderRadius.circular(
+                            AppRadius.pill,
+                          ),
                           indicator: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -186,10 +201,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
 
           // ---------- Active-filter summary ----------
           if (filter.isActive)
-            _FilterSummary(
-              filter: filter,
-              onClear: notifier.clear,
-            ),
+            _FilterSummary(filter: filter, onClear: notifier.clear),
 
           Expanded(
             child: TabBarView(

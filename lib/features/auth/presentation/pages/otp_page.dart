@@ -41,8 +41,7 @@ class _OtpPageState extends ConsumerState<OtpPage> {
       return;
     }
 
-    final success =
-        await ref.read(authProvider.notifier).verifyOtp(phone, otp);
+    final success = await ref.read(authProvider.notifier).verifyOtp(phone, otp);
     if (success && mounted) {
       context.go('/home');
     }
@@ -54,24 +53,24 @@ class _OtpPageState extends ConsumerState<OtpPage> {
     _pinController.clear();
     final success = await ref.read(authProvider.notifier).sendOtp(phone);
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP resent successfully.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('OTP resent successfully.')));
     }
   }
 
   PinTheme _pinTheme(Color borderColor) => PinTheme(
-        width: 52,
-        height: 60,
-        textStyle: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor, width: 1.5),
-        ),
-      );
+    width: 52,
+    height: 60,
+    textStyle: Theme.of(
+      context,
+    ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+    decoration: BoxDecoration(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: borderColor, width: 1.5),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -103,9 +102,7 @@ class _OtpPageState extends ConsumerState<OtpPage> {
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  const BrandMark(logoSize: 64, compact: true),
-                ],
+                children: [const BrandMark(logoSize: 64, compact: true)],
               ),
             ),
           ),

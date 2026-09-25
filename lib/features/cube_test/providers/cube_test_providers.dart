@@ -8,8 +8,10 @@ import '../data/models/cube_test_model.dart';
 /// Keyed by the ORDER CODE (ORD-2025-0001) — the same value the routes use.
 /// Invalidate this family entry after any create/delete so the list reflects
 /// the server rather than a stale snapshot.
-final cubeTestsProvider =
-    FutureProvider.family<List<CubeTest>, String>((ref, orderId) {
+final cubeTestsProvider = FutureProvider.family<List<CubeTest>, String>((
+  ref,
+  orderId,
+) {
   return ref.read(techApiProvider).getCubeTests(orderId);
 });
 
@@ -135,11 +137,11 @@ class CubeTestFilterNotifier extends Notifier<CubeTestFilter> {
       state = state.copyWith(status: status);
 
   void setRange(DateTime? from, DateTime? to) => state = state.copyWith(
-        from: from,
-        to: to,
-        clearFrom: from == null,
-        clearTo: to == null,
-      );
+    from: from,
+    to: to,
+    clearFrom: from == null,
+    clearTo: to == null,
+  );
 
   void clearDates() => state = state.copyWith(clearFrom: true, clearTo: true);
 
@@ -148,8 +150,8 @@ class CubeTestFilterNotifier extends Notifier<CubeTestFilter> {
 
 final cubeTestFilterProvider =
     NotifierProvider<CubeTestFilterNotifier, CubeTestFilter>(
-  CubeTestFilterNotifier.new,
-);
+      CubeTestFilterNotifier.new,
+    );
 
 /// Every cube test across this technician's assigned orders, server-filtered.
 ///
@@ -157,10 +159,12 @@ final cubeTestFilterProvider =
 /// hundreds of samples is not downloading all of them to hide most.
 final allCubeTestsProvider =
     FutureProvider.family<List<CubeTestEntry>, CubeTestFilter>((ref, filter) {
-  return ref.read(techApiProvider).getAllCubeTests(
-        query: filter.query,
-        dateFrom: filter.fromIso,
-        dateTo: filter.toIso,
-        status: filter.status.apiValue,
-      );
-});
+      return ref
+          .read(techApiProvider)
+          .getAllCubeTests(
+            query: filter.query,
+            dateFrom: filter.fromIso,
+            dateTo: filter.toIso,
+            status: filter.status.apiValue,
+          );
+    });

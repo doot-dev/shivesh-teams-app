@@ -18,8 +18,10 @@ class NotificationsPage extends ConsumerStatefulWidget {
 
 class _NotificationsPageState extends ConsumerState<NotificationsPage>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController =
-      TabController(length: 2, vsync: this);
+  late final TabController _tabController = TabController(
+    length: 2,
+    vsync: this,
+  );
 
   @override
   void dispose() {
@@ -60,8 +62,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
                       children: [
                         IconButton(
                           onPressed: () => context.pop(),
-                          icon: const Icon(Icons.arrow_back_rounded,
-                              color: Colors.white),
+                          icon: const Icon(
+                            Icons.arrow_back_rounded,
+                            color: Colors.white,
+                          ),
                           tooltip: 'Back',
                         ),
                         Expanded(
@@ -85,15 +89,18 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
                       child: TabBar(
                         controller: _tabController,
                         labelColor: AppColors.primaryDark,
-                        unselectedLabelColor:
-                            Colors.white.withValues(alpha: 0.85),
-                        labelStyle: theme.textTheme.labelLarge
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        unselectedLabelColor: Colors.white.withValues(
+                          alpha: 0.85,
+                        ),
+                        labelStyle: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                         unselectedLabelStyle: theme.textTheme.labelLarge,
                         dividerColor: Colors.transparent,
                         indicatorSize: TabBarIndicatorSize.tab,
-                        splashBorderRadius:
-                            BorderRadius.circular(AppRadius.pill),
+                        splashBorderRadius: BorderRadius.circular(
+                          AppRadius.pill,
+                        ),
                         indicator: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -118,8 +125,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
                   provider: notificationsProvider,
                   emptyIcon: Icons.notifications_none_rounded,
                   emptyTitle: 'No notifications',
-                  emptyMessage:
-                      'Updates about your orders will appear here.',
+                  emptyMessage: 'Updates about your orders will appear here.',
                   onRefresh: () => ref.invalidate(notificationsProvider),
                 ),
                 _NotificationTab(
@@ -151,8 +157,11 @@ class _NotificationTab extends ConsumerWidget {
 
   /// Typed as the AsyncNotifierProvider these actually are — an earlier
   /// version declared FutureProvider here and would not compile.
-  final AsyncNotifierProvider<AsyncNotifier<List<AppNotification>>,
-      List<AppNotification>> provider;
+  final AsyncNotifierProvider<
+    AsyncNotifier<List<AppNotification>>,
+    List<AppNotification>
+  >
+  provider;
   final IconData emptyIcon;
   final String emptyTitle;
   final String emptyMessage;
@@ -166,9 +175,7 @@ class _NotificationTab extends ConsumerWidget {
       color: AppColors.primary,
       onRefresh: () async {
         onRefresh();
-        await ref
-            .read(provider.future)
-            .catchError((_) => <AppNotification>[]);
+        await ref.read(provider.future).catchError((_) => <AppNotification>[]);
       },
       child: async.when(
         loading: () => ListView(
@@ -240,8 +247,11 @@ class _NotificationCard extends StatelessWidget {
               color: AppColors.blue50,
               borderRadius: BorderRadius.circular(AppRadius.sm + 2),
             ),
-            child: const Icon(Icons.notifications_rounded,
-                size: 18, color: AppColors.primary),
+            child: const Icon(
+              Icons.notifications_rounded,
+              size: 18,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -255,13 +265,17 @@ class _NotificationCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs + 2),
                 Row(
                   children: [
-                    const Icon(Icons.schedule_rounded,
-                        size: 12, color: AppColors.textMuted),
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 12,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       item.timeAgo,
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: AppColors.textMuted),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -279,8 +293,11 @@ class _NotificationCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.call_rounded,
-                            size: 14, color: AppColors.primary),
+                        const Icon(
+                          Icons.call_rounded,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           item.callNumber!,

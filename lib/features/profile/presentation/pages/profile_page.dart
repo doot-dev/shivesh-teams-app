@@ -63,8 +63,9 @@ class ProfilePage extends ConsumerWidget {
                   ),
                   error: (e, _) => Text(
                     'Could not load your profile',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: Colors.white70),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.white70,
+                    ),
                   ),
                   data: (profile) => FadeSlideIn(
                     child: Row(
@@ -173,14 +174,18 @@ class ProfilePage extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.verified_user_outlined,
-                        size: 20, color: AppColors.primary),
+                    const Icon(
+                      Icons.verified_user_outlined,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Text(
                         'You stay signed in for 30 days on this device.',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: AppColors.primaryDark),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.primaryDark,
+                        ),
                       ),
                     ),
                   ],
@@ -263,8 +268,8 @@ class _HeaderChip extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.80),
-                ),
+              color: Colors.white.withValues(alpha: 0.80),
+            ),
           ),
         ),
       ],
@@ -312,19 +317,23 @@ class _SettingsTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   if (subtitle != null)
                     Text(
                       subtitle!,
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: AppColors.textMuted),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
                     ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
-                color: AppColors.textMuted),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
           ],
         ),
       ),
@@ -343,8 +352,7 @@ class _Avatar extends StatelessWidget {
   /// raw split, which threw a RangeError on an empty name and produced only
   /// "R" for a double-spaced "Ravi  Kumar".
   String get _initials {
-    final parts =
-        name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return '?';
     return parts.take(2).map((p) => p[0].toUpperCase()).join();
   }
@@ -363,15 +371,18 @@ class _Avatar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.28), width: 2),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.28),
+          width: 2,
+        ),
       ),
       alignment: Alignment.center,
       child: Text(
         _initials,
         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }

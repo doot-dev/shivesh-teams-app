@@ -78,18 +78,18 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
   }
 
   Widget _pickerTheme(BuildContext context, Widget? child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: AppColors.primary,
-            onPrimary: Colors.white,
-            surface: Colors.white,
-          ),
-        ),
-        child: child!,
-      );
+    data: Theme.of(context).copyWith(
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.primary,
+        onPrimary: Colors.white,
+        surface: Colors.white,
+      ),
+    ),
+    child: child!,
+  );
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
     );
@@ -116,7 +116,9 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
 
     setState(() => _isSubmitting = true);
     try {
-      await ref.read(techApiProvider).createCubeTest(
+      await ref
+          .read(techApiProvider)
+          .createCubeTest(
             widget.orderId,
             castingDate: _castingDate!,
             quantity: _quantityController.text.trim(),
@@ -177,8 +179,10 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                   children: [
                     IconButton(
                       onPressed: () => context.pop(),
-                      icon: const Icon(Icons.arrow_back_rounded,
-                          color: Colors.white),
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: Colors.white,
+                      ),
                       tooltip: 'Back',
                     ),
                     Expanded(
@@ -225,8 +229,10 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Sample info',
-                              style: theme.textTheme.titleSmall),
+                          Text(
+                            'Sample info',
+                            style: theme.textTheme.titleSmall,
+                          ),
                           const SizedBox(height: AppSpacing.lg),
                           const FieldLabel('Casting date', required: true),
                           const SizedBox(height: AppSpacing.xs + 2),
@@ -265,25 +271,29 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Testing period',
-                              style: theme.textTheme.titleSmall),
+                          Text(
+                            'Testing period',
+                            style: theme.textTheme.titleSmall,
+                          ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             'Standard periods calculate the testing date for you.',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textMuted),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.textMuted,
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           Wrap(
                             spacing: AppSpacing.sm + 2,
                             runSpacing: AppSpacing.sm + 2,
                             children: selectableCubeTestPeriods
-                                .map((p) => _PeriodChip(
-                                      label: p.label,
-                                      selected: _period == p,
-                                      onTap: () =>
-                                          setState(() => _period = p),
-                                    ))
+                                .map(
+                                  (p) => _PeriodChip(
+                                    label: p.label,
+                                    selected: _period == p,
+                                    onTap: () => setState(() => _period = p),
+                                  ),
+                                )
                                 .toList(),
                           ),
                           if (_period == CubeTestPeriod.custom) ...[
@@ -302,8 +312,9 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                             Text(
                               'A custom date records a test that has already '
                               'happened, so it cannot be in the future.',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: AppColors.textMuted),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: AppColors.textMuted,
+                              ),
                             ),
                           ],
                           // Live computed date — reassures the technician the
@@ -313,49 +324,51 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                             curve: AppMotion.ease,
                             child:
                                 testDate != null &&
-                                        _period != CubeTestPeriod.custom
-                                    ? Padding(
-                                        padding: const EdgeInsets.only(
-                                            top: AppSpacing.lg),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: AppSpacing.md + 2,
-                                            vertical: AppSpacing.md,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.blue50,
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    AppRadius.md),
-                                            border: Border.all(
-                                                color: AppColors.blue100),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(
-                                                  Icons.event_available_rounded,
-                                                  size: 18,
-                                                  color: AppColors.primary),
-                                              const SizedBox(
-                                                  width: AppSpacing.sm + 2),
-                                              Expanded(
-                                                child: Text(
-                                                  'Testing date: '
-                                                  '${_dateFmt.format(testDate)}',
-                                                  style: theme
-                                                      .textTheme.bodySmall
-                                                      ?.copyWith(
-                                                    color: AppColors.primary,
-                                                    fontWeight:
-                                                        FontWeight.w700,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                    _period != CubeTestPeriod.custom
+                                ? Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: AppSpacing.lg,
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.md + 2,
+                                        vertical: AppSpacing.md,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.blue50,
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadius.md,
                                         ),
-                                      )
-                                    : const SizedBox(width: double.infinity),
+                                        border: Border.all(
+                                          color: AppColors.blue100,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.event_available_rounded,
+                                            size: 18,
+                                            color: AppColors.primary,
+                                          ),
+                                          const SizedBox(
+                                            width: AppSpacing.sm + 2,
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              'Testing date: '
+                                              '${_dateFmt.format(testDate)}',
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                    color: AppColors.primary,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : const SizedBox(width: double.infinity),
                           ),
                         ],
                       ),
@@ -370,13 +383,16 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Test report',
-                              style: theme.textTheme.titleSmall),
+                          Text(
+                            'Test report',
+                            style: theme.textTheme.titleSmall,
+                          ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             'Optional — you can attach the result sheet later.',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textMuted),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.textMuted,
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.md),
                           PressableScale(
@@ -392,13 +408,15 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                               child: Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.symmetric(
-                                    vertical: AppSpacing.xxxl),
+                                  vertical: AppSpacing.xxxl,
+                                ),
                                 decoration: BoxDecoration(
                                   color: _fileName != null
                                       ? AppColors.blue50
                                       : Colors.transparent,
-                                  borderRadius:
-                                      BorderRadius.circular(AppRadius.lg),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.lg,
+                                  ),
                                 ),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -425,7 +443,8 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                                     const SizedBox(height: AppSpacing.md),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: AppSpacing.lg),
+                                        horizontal: AppSpacing.lg,
+                                      ),
                                       child: Text(
                                         _fileName ?? 'Upload a file',
                                         textAlign: TextAlign.center,
@@ -433,11 +452,11 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                                         overflow: TextOverflow.ellipsis,
                                         style: theme.textTheme.bodyMedium
                                             ?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                          color: _fileName != null
-                                              ? AppColors.primary
-                                              : AppColors.textPrimary,
-                                        ),
+                                              fontWeight: FontWeight.w700,
+                                              color: _fileName != null
+                                                  ? AppColors.primary
+                                                  : AppColors.textPrimary,
+                                            ),
                                       ),
                                     ),
                                     const SizedBox(height: 3),
@@ -445,7 +464,8 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                                       'PDF, JPG or PNG up to 10 MB',
                                       style: theme.textTheme.labelSmall
                                           ?.copyWith(
-                                              color: AppColors.textMuted),
+                                            color: AppColors.textMuted,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -475,7 +495,8 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                               )
                             : const Icon(Icons.check_rounded, size: 20),
                         label: Text(
-                            _isSubmitting ? 'Submitting…' : 'Submit report'),
+                          _isSubmitting ? 'Submitting…' : 'Submit report',
+                        ),
                       ),
                     ),
                   ),
@@ -520,9 +541,9 @@ class _PeriodChip extends StatelessWidget {
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: selected ? Colors.white : AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
+            color: selected ? Colors.white : AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -562,21 +583,26 @@ class _PickerField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 19,
-                color: filled ? AppColors.primary : AppColors.textMuted),
+            Icon(
+              icon,
+              size: 19,
+              color: filled ? AppColors.primary : AppColors.textMuted,
+            ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
                 value ?? hint,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color:
-                      filled ? AppColors.textPrimary : AppColors.textMuted,
+                  color: filled ? AppColors.textPrimary : AppColors.textMuted,
                   fontWeight: filled ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
             ),
-            const Icon(Icons.keyboard_arrow_down_rounded,
-                size: 20, color: AppColors.textMuted),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 20,
+              color: AppColors.textMuted,
+            ),
           ],
         ),
       ),

@@ -6,7 +6,14 @@ import 'package:intl/intl.dart';
 /// never `.name`. A standard period means the test date is COMPUTED as
 /// castingDate + N days; [custom] means the technician supplies the date of a
 /// test that already happened (the backend rejects a future custom date).
-enum CubeTestPeriod { sevenDays, fourteenDays, fifteenDays, twentyOneDays, twentyEightDays, custom }
+enum CubeTestPeriod {
+  sevenDays,
+  fourteenDays,
+  fifteenDays,
+  twentyOneDays,
+  twentyEightDays,
+  custom,
+}
 
 /// D21: what the picker offers for NEW tests. 14 and 21 days stay in the enum
 /// only so older records still parse and show a label.
@@ -136,7 +143,8 @@ class CubeTest {
 
   /// True once the scheduled testing date has arrived.
   /// Test date passed and no result yet (matches the server's DUE status).
-  bool get isDue => (fileUrl == null || fileUrl!.isEmpty) && !toDate.isAfter(DateTime.now());
+  bool get isDue =>
+      (fileUrl == null || fileUrl!.isEmpty) && !toDate.isAfter(DateTime.now());
 
   /// Whole days until the test is due; negative once it has passed.
   int get daysUntilDue {
@@ -159,14 +167,14 @@ class CubeTest {
   }
 
   factory CubeTest.fromJson(Map<String, dynamic> json) => CubeTest(
-        id: json['id'] as String? ?? '',
-        castingDate: _parseDate(json['castingDate']),
-        quantity: json['quantity']?.toString() ?? '',
-        period: CubeTestPeriodX.fromApi(json['period'] as String?),
-        toDate: _parseDate(json['toDate']),
-        fileUrl: json['fileUrl'] as String?,
-        createdAt: _parseNullableDate(json['createdAt']),
-      );
+    id: json['id'] as String? ?? '',
+    castingDate: _parseDate(json['castingDate']),
+    quantity: json['quantity']?.toString() ?? '',
+    period: CubeTestPeriodX.fromApi(json['period'] as String?),
+    toDate: _parseDate(json['toDate']),
+    fileUrl: json['fileUrl'] as String?,
+    createdAt: _parseNullableDate(json['createdAt']),
+  );
 }
 
 /// A cube test as it appears in the cross-order "All cube tests" feed.
@@ -198,10 +206,8 @@ class CubeTestEntry {
   final String? clientName;
 
   /// "M25 — OPC" style label, skipping whichever half is missing.
-  String get productLabel => [
-        ?productName,
-        ?productGrade,
-      ].where((s) => s.isNotEmpty).join(' — ');
+  String get productLabel =>
+      [?productName, ?productGrade].where((s) => s.isNotEmpty).join(' — ');
 
   /// Project with its site in brackets, when both are known.
   String get projectLabel {
@@ -213,12 +219,12 @@ class CubeTestEntry {
   }
 
   factory CubeTestEntry.fromJson(Map<String, dynamic> json) => CubeTestEntry(
-        test: CubeTest.fromJson(json),
-        orderId: json['orderId'] as String? ?? '',
-        productName: json['productName'] as String?,
-        productGrade: json['productGrade'] as String?,
-        projectName: json['projectName'] as String?,
-        siteName: json['siteName'] as String?,
-        clientName: json['clientName'] as String?,
-      );
+    test: CubeTest.fromJson(json),
+    orderId: json['orderId'] as String? ?? '',
+    productName: json['productName'] as String?,
+    productGrade: json['productGrade'] as String?,
+    projectName: json['projectName'] as String?,
+    siteName: json['siteName'] as String?,
+    clientName: json['clientName'] as String?,
+  );
 }

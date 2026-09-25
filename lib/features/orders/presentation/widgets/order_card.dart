@@ -24,14 +24,14 @@ class OrderCard extends StatelessWidget {
   final bool showTracker;
 
   BadgeTone get _statusTone {
-    switch (order.deliveryStatus) {
-      case DeliveryStatus.delivered:
+    if (order.isDelayed) return BadgeTone.warning;
+    switch (order.step) {
+      case OrderStep.completed:
         return BadgeTone.success;
-      case DeliveryStatus.reached:
+      case OrderStep.reached:
+      case OrderStep.dispatched:
         return BadgeTone.info;
-      case DeliveryStatus.onTheWay:
-        return BadgeTone.info;
-      case DeliveryStatus.confirmed:
+      case OrderStep.confirmed:
         return BadgeTone.neutral;
     }
   }
@@ -98,15 +98,16 @@ class OrderCard extends StatelessWidget {
                             : order.clientName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: AppColors.textMuted),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 StatusBadge(
-                  label: order.deliveryStatus.label,
+                  label: statusLabel(order.status),
                   tone: _statusTone,
                   dense: true,
                 ),
@@ -153,16 +154,20 @@ class OrderCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.location_on_outlined,
-                      size: 14, color: AppColors.textMuted),
+                  const Icon(
+                    Icons.location_on_outlined,
+                    size: 14,
+                    color: AppColors.textMuted,
+                  ),
                   const SizedBox(width: 5),
                   Expanded(
                     child: Text(
                       order.location,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: AppColors.textMuted),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ),
                 ],
@@ -177,8 +182,8 @@ class OrderCard extends StatelessWidget {
               AppSpacing.lg,
             ),
             child: showTracker
-                ? DeliveryTracker(status: order.deliveryStatus, compact: true)
-                : DeliveryProgressBar(status: order.deliveryStatus),
+                ? DeliveryTracker(status: order.step, compact: true)
+                : DeliveryProgressBar(status: order.step),
           ),
         ],
       ),

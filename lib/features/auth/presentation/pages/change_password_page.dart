@@ -16,8 +16,7 @@ class ChangePasswordPage extends ConsumerStatefulWidget {
   const ChangePasswordPage({super.key});
 
   @override
-  ConsumerState<ChangePasswordPage> createState() =>
-      _ChangePasswordPageState();
+  ConsumerState<ChangePasswordPage> createState() => _ChangePasswordPageState();
 }
 
 class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
@@ -48,10 +47,9 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     if (_formKey.currentState?.validate() != true) return;
     FocusScope.of(context).unfocus();
 
-    final ok = await ref.read(authProvider.notifier).changePassword(
-          _oldController.text,
-          _newController.text,
-        );
+    final ok = await ref
+        .read(authProvider.notifier)
+        .changePassword(_oldController.text, _newController.text);
 
     if (!mounted) return;
     if (ok) {
@@ -59,8 +57,11 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
         SnackBar(
           content: const Row(
             children: [
-              Icon(Icons.check_circle_outline_rounded,
-                  color: Colors.white, size: 20),
+              Icon(
+                Icons.check_circle_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
               SizedBox(width: AppSpacing.md),
               Expanded(child: Text('Password changed successfully.')),
             ],
@@ -123,16 +124,20 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.key_rounded,
-                          color: Colors.white, size: 19),
+                      child: const Icon(
+                        Icons.key_rounded,
+                        color: Colors.white,
+                        size: 19,
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Text(
                         'Choose a password you have not used before. '
                         'You will stay signed in on this device.',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: AppColors.blue800),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.blue800,
+                        ),
                       ),
                     ),
                   ],
@@ -219,8 +224,9 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                     controller: _confirmController,
                     obscureText: _obscureNew,
                     enabled: !authState.isLoading,
-                    validator: (v) =>
-                        v != _newController.text ? 'Passwords do not match' : null,
+                    validator: (v) => v != _newController.text
+                        ? 'Passwords do not match'
+                        : null,
                     decoration: const InputDecoration(
                       hintText: 'Re-enter new password',
                       prefixIcon: Icon(Icons.check_circle_outline_rounded),
@@ -326,9 +332,9 @@ class _StrengthMeter extends StatelessWidget {
           child: Text(
             labels[score],
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors[score],
-                  fontWeight: FontWeight.w700,
-                ),
+              color: colors[score],
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],

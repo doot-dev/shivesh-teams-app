@@ -104,10 +104,11 @@ class StatusBadge extends StatelessWidget {
           ],
           Text(
             label,
-            style: (dense
-                    ? Theme.of(context).textTheme.labelSmall
-                    : Theme.of(context).textTheme.labelMedium)
-                ?.copyWith(color: fg, fontWeight: FontWeight.w700),
+            style:
+                (dense
+                        ? Theme.of(context).textTheme.labelSmall
+                        : Theme.of(context).textTheme.labelMedium)
+                    ?.copyWith(color: fg, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -145,8 +146,9 @@ class SectionHeader extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitle!,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textMuted),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ],
@@ -163,10 +165,17 @@ class SectionHeader extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(actionLabel!, style: theme.textTheme.labelMedium
-                    ?.copyWith(color: AppColors.primary)),
-                const Icon(Icons.chevron_right_rounded,
-                    size: 16, color: AppColors.primary),
+                Text(
+                  actionLabel!,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
               ],
             ),
           ),
@@ -230,8 +239,9 @@ class EmptyState extends StatelessWidget {
               Text(
                 message!,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textMuted),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textMuted,
+                ),
               ),
             ],
             if (actionLabel != null && onAction != null) ...[
@@ -282,8 +292,11 @@ class ErrorStateView extends StatelessWidget {
               color: AppColors.dangerSoft,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.cloud_off_rounded,
-                size: 28, color: AppColors.danger),
+            child: const Icon(
+              Icons.cloud_off_rounded,
+              size: 28,
+              color: AppColors.danger,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -295,8 +308,9 @@ class ErrorStateView extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style:
-                theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppColors.textMuted,
+            ),
           ),
           if (onRetry != null) ...[
             const SizedBox(height: AppSpacing.lg),
@@ -304,9 +318,7 @@ class ErrorStateView extends StatelessWidget {
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Try again'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(160, 46),
-              ),
+              style: OutlinedButton.styleFrom(minimumSize: const Size(160, 46)),
             ),
           ],
         ],
@@ -323,12 +335,16 @@ class DetailRow extends StatelessWidget {
     required this.value,
     this.icon,
     this.valueColor,
+    this.trailing,
   });
 
   final String label;
   final String value;
   final IconData? icon;
   final Color? valueColor;
+
+  /// e.g. a call button next to a phone number.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -346,8 +362,9 @@ class DetailRow extends StatelessWidget {
             flex: 4,
             child: Text(
               label,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.textMuted),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
             ),
           ),
           Expanded(
@@ -361,6 +378,7 @@ class DetailRow extends StatelessWidget {
               ),
             ),
           ),
+          ?trailing,
         ],
       ),
     );
@@ -431,9 +449,10 @@ class FieldLabel extends StatelessWidget {
         children: [
           Text(text, style: AppTypography.overline),
           if (required)
-            Text(' *', style: AppTypography.overline.copyWith(
-              color: AppColors.danger,
-            )),
+            Text(
+              ' *',
+              style: AppTypography.overline.copyWith(color: AppColors.danger),
+            ),
         ],
       ),
     );

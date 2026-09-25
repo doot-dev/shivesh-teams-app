@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../network/offline_cache.dart';
+
 import '../../features/cube_test/providers/cube_test_providers.dart';
 import '../../features/notifications/providers/notifications_providers.dart';
 import '../../features/orders/providers/orders_providers.dart';
@@ -25,6 +27,10 @@ import '../../features/profile/providers/profile_providers.dart';
 /// /login, so these simply drop their state instead of refetching with a dead
 /// token.
 void resetSessionData(Ref ref) {
+  // The offline copy (SQLite) belongs to this session too.
+  OfflineCache.clear();
+  offlineNotifier.value = false;
+
   // Orders
   ref.invalidate(activeOrdersProvider);
   ref.invalidate(pastOrdersProvider);

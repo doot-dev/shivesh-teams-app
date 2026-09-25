@@ -100,10 +100,7 @@ class StaggeredItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effective = index > maxIndex ? maxIndex : index;
-    return FadeSlideIn(
-      delay: stagger * effective,
-      child: child,
-    );
+    return FadeSlideIn(delay: stagger * effective, child: child);
   }
 }
 
@@ -206,8 +203,9 @@ class _ShimmerBoxState extends State<ShimmerBox>
     final base = widget.onDark
         ? Colors.white.withValues(alpha: 0.16)
         : AppColors.surfaceMuted;
-    final highlight =
-        widget.onDark ? Colors.white.withValues(alpha: 0.30) : AppColors.blue100;
+    final highlight = widget.onDark
+        ? Colors.white.withValues(alpha: 0.30)
+        : AppColors.blue100;
 
     if (reduced) {
       return Container(

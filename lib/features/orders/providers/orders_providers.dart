@@ -105,21 +105,21 @@ class OrderFilterNotifier extends Notifier<OrderFilter> {
   void setType(String type) => state = state.copyWith(type: type);
 
   void setRange(DateTime? from, DateTime? to) => state = state.copyWith(
-        from: from,
-        to: to,
-        clearFrom: from == null,
-        clearTo: to == null,
-      );
+    from: from,
+    to: to,
+    clearFrom: from == null,
+    clearTo: to == null,
+  );
 
-  void clearDates() =>
-      state = state.copyWith(clearFrom: true, clearTo: true);
+  void clearDates() => state = state.copyWith(clearFrom: true, clearTo: true);
 
   /// Drop the text and dates, keeping the current tab.
   void clear() => state = state.cleared();
 }
 
-final orderFilterProvider =
-    NotifierProvider<OrderFilterNotifier, OrderFilter>(OrderFilterNotifier.new);
+final orderFilterProvider = NotifierProvider<OrderFilterNotifier, OrderFilter>(
+  OrderFilterNotifier.new,
+);
 
 /// Server-side filtered orders for one [OrderFilter].
 ///
@@ -128,24 +128,28 @@ final orderFilterProvider =
 /// instead of firing a redundant request.
 final searchedOrdersProvider =
     FutureProvider.family<List<FieldOrder>, OrderFilter>((ref, filter) async {
-  if (!filter.isActive) {
-    return ref.watch(
-      filter.type == 'past'
-          ? pastOrdersProvider.future
-          : activeOrdersProvider.future,
-    );
-  }
+      if (!filter.isActive) {
+        return ref.watch(
+          filter.type == 'past'
+              ? pastOrdersProvider.future
+              : activeOrdersProvider.future,
+        );
+      }
 
-  return ref.read(techApiProvider).getOrders(
-        type: filter.type,
-        query: filter.query,
-        dateFrom: filter.fromIso,
-        dateTo: filter.toIso,
-      );
-});
+      return ref
+          .read(techApiProvider)
+          .getOrders(
+            type: filter.type,
+            query: filter.query,
+            dateFrom: filter.fromIso,
+            dateTo: filter.toIso,
+          );
+    });
 
-final orderByIdProvider =
-    FutureProvider.family<FieldOrder?, String>((ref, orderId) async {
+final orderByIdProvider = FutureProvider.family<FieldOrder?, String>((
+  ref,
+  orderId,
+) async {
   try {
     return await ref.read(techApiProvider).getOrder(orderId);
   } catch (_) {

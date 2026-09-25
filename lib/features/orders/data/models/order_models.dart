@@ -1,6 +1,16 @@
 const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 /// Lenient ISO parse — the API sends `createdAt` as a string, but a null or a
@@ -34,21 +44,9 @@ String _fmtTimeAgo(String? iso) {
   }
 }
 
-/// The three delivery steps a technician moves an order through:
-/// Confirmed → On the way → Reached.
-///
-/// These map onto the backend's `deliveryStatus` enum
-/// (ASSIGNED / IN_TRANSIT / DELIVERED / COMPLETED) via [apiValue] and
-/// [mapDeliveryStatus], so never send a raw `.name` to the API — always go
-/// through [apiValue].
-///
-/// A fourth `dispatched` step was removed deliberately: it had no distinct
-/// server value (it reported ASSIGNED, exactly like `confirmed`), so picking it
-/// looked like progress to the technician while the backend recorded no change
-/// at all. The order of these values also drives [DeliveryTracker], which
-/// renders one dot per value — adding a step here adds a dot there.
-// W32: "Reached" is now its own server step (REACHED); "Delivered" (poured,
-// challan in) follows it. The tracker draws one dot per value.
+/// One truck's step (TmDetail.status on the server: ASSIGNED / IN_TRANSIT /
+/// REACHED / DELIVERED). Per truck only — the order has its own [OrderStep].
+/// Always send [apiValue], never the Dart enum name.
 enum DeliveryStatus { confirmed, onTheWay, reached, delivered }
 
 extension DeliveryStatusLabel on DeliveryStatus {
@@ -92,6 +90,30 @@ extension DeliveryStatusLabel on DeliveryStatus {
     }
   }
 }
+
+/// The order's own step (2026-09-26: one status per order, server values
+/// CONFIRMED → DISPATCHED → REACHED → COMPLETED). DELAYED is not a step: it is
+/// a flag on the step the order was at ([FieldOrder.isDelayed]). The tracker
+/// draws one dot per value.
+enum OrderStep { confirmed, dispatched, reached, completed }
+
+extension OrderStepLabel on OrderStep {
+  String get label => switch (this) {
+    OrderStep.confirmed => 'Confirmed',
+    OrderStep.dispatched => 'Dispatched',
+    OrderStep.reached => 'Reached',
+    OrderStep.completed => 'Completed',
+  };
+
+  double get progress => index / (OrderStep.values.length - 1);
+}
+
+/// Statuses a technician may set, in the order the buttons show.
+const fieldStatuses = ['DISPATCHED', 'DELAYED', 'REACHED', 'COMPLETED'];
+
+/// "DISPATCHED" → "Dispatched".
+String statusLabel(String s) =>
+    s.isEmpty ? '—' : s[0] + s.substring(1).toLowerCase();
 
 DeliveryStatus mapDeliveryStatus(String? s) {
   switch (s) {
@@ -140,7 +162,8 @@ class TmDetail {
 
   /// "Reached site" can be tapped while the truck is assigned or on the way.
   bool get canMarkReached =>
-      !isReviewed && (status == DeliveryStatus.confirmed || status == DeliveryStatus.onTheWay);
+      !isReviewed &&
+      (status == DeliveryStatus.confirmed || status == DeliveryStatus.onTheWay);
 
   final String id;
   final String tmNumber;
@@ -161,19 +184,19 @@ class TmDetail {
   String get addedAtLabel => createdAt == null ? '' : _fmtDateTime(createdAt!);
 
   factory TmDetail.fromJson(Map<String, dynamic> json) => TmDetail(
-        id: json['id'] as String? ?? json['tmId'] as String? ?? '',
-        tmNumber: json['tmNumber'] as String? ?? '',
-        truckNo: json['truckNo'] as String? ?? '',
-        qty: json['qty'] as String? ?? '',
-        batchStartTime: json['batchStartTime'] as String? ?? '',
-        batchEndTime: json['batchEndTime'] as String? ?? '',
-        challanNo: json['challanNo'] as String? ?? '',
-        challanUrl: json['challanUrl'] as String?,
-        status: mapDeliveryStatus(json['status'] as String?),
-        createdAt: _parseDate(json['createdAt']),
-        approvalStatus: json['approvalStatus'] as String? ?? 'PENDING',
-        rejectionReason: json['rejectionReason'] as String?,
-      );
+    id: json['id'] as String? ?? json['tmId'] as String? ?? '',
+    tmNumber: json['tmNumber'] as String? ?? '',
+    truckNo: json['truckNo'] as String? ?? '',
+    qty: json['qty'] as String? ?? '',
+    batchStartTime: json['batchStartTime'] as String? ?? '',
+    batchEndTime: json['batchEndTime'] as String? ?? '',
+    challanNo: json['challanNo'] as String? ?? '',
+    challanUrl: json['challanUrl'] as String?,
+    status: mapDeliveryStatus(json['status'] as String?),
+    createdAt: _parseDate(json['createdAt']),
+    approvalStatus: json['approvalStatus'] as String? ?? 'PENDING',
+    rejectionReason: json['rejectionReason'] as String?,
+  );
 }
 
 class VendorDetail {
@@ -211,11 +234,11 @@ class Comment {
   final bool isMe;
 
   factory Comment.fromJson(Map<String, dynamic> json) => Comment(
-        author: json['authorName'] as String? ?? '',
-        message: json['message'] as String? ?? '',
-        timeAgo: _fmtTimeAgo(json['createdAt'] as String?),
-        isMe: (json['authorType'] as String?) == 'FIELD_TECH',
-      );
+    author: json['authorName'] as String? ?? '',
+    message: json['message'] as String? ?? '',
+    timeAgo: _fmtTimeAgo(json['createdAt'] as String?),
+    isMe: (json['authorType'] as String?) == 'FIELD_TECH',
+  );
 }
 
 class FieldOrder {
@@ -232,11 +255,17 @@ class FieldOrder {
     required this.location,
     required this.isActive,
     this.status = '',
-    this.deliveryStatus = DeliveryStatus.confirmed,
     this.vendorDetail = VendorDetail.empty,
     this.tmDetails = const [],
     this.comments = const [],
+    this.placedBy,
+    this.placedByPhone,
   });
+
+  /// docs/06: the client's person who placed it from the app — who to call at
+  /// site. "Rakesh Pawar (Site Engineer)". Null when the office placed it.
+  final String? placedBy;
+  final String? placedByPhone;
 
   /// The human order code (e.g. ORD-2025-0001) — this is what every
   /// `/orders/:orderId` route expects, NOT the cuid primary key.
@@ -254,7 +283,20 @@ class FieldOrder {
 
   /// Raw order status (NEW / CONFIRMED / IN_PROGRESS / DELIVERED / ...).
   final String status;
-  final DeliveryStatus deliveryStatus;
+
+  /// DELAYED is shown on the step it was delayed at (before or after dispatch).
+  bool get isDelayed => status == 'DELAYED';
+
+  OrderStep get step => switch (status) {
+    'DISPATCHED' => OrderStep.dispatched,
+    'REACHED' => OrderStep.reached,
+    'COMPLETED' => OrderStep.completed,
+    'DELAYED' =>
+      tmDetails.any((t) => t.status != DeliveryStatus.confirmed)
+          ? OrderStep.dispatched
+          : OrderStep.confirmed,
+    _ => OrderStep.confirmed,
+  };
   final VendorDetail vendorDetail;
   final List<TmDetail> tmDetails;
   final List<Comment> comments;
@@ -274,17 +316,26 @@ class FieldOrder {
     final client = json['client'] as Map<String, dynamic>?;
 
     final vendors = (json['vendors'] as List<dynamic>?) ?? const [];
-    final firstVendor =
-        vendors.isNotEmpty ? vendors.first as Map<String, dynamic> : null;
+    final firstVendor = vendors.isNotEmpty
+        ? vendors.first as Map<String, dynamic>
+        : null;
     final vendorMap = firstVendor?['vendor'] as Map<String, dynamic>?;
-    final vendorHandler = firstVendor?['vendorHandler'] as Map<String, dynamic>?;
+    final vendorHandler =
+        firstVendor?['vendorHandler'] as Map<String, dynamic>?;
     final vendorLocation =
         firstVendor?['vendorLocation'] as Map<String, dynamic>?;
 
     final tmList = (json['tmDetails'] as List<dynamic>?) ?? const [];
     final commentList = (json['comments'] as List<dynamic>?) ?? const [];
+    final placer = json['placedBy'] as Map<String, dynamic>?;
+    final placerRole =
+        (placer?['role'] as Map<String, dynamic>?)?['name'] as String?;
 
     return FieldOrder(
+      placedBy: placer == null
+          ? null
+          : '${placer['name']}${placerRole != null ? ' ($placerRole)' : ''}',
+      placedByPhone: placer?['phone'] as String?,
       id: json['orderId'] as String? ?? json['id'] as String? ?? '',
       projectName: project?['projectName'] as String? ?? '',
       clientName: client?['companyName'] as String? ?? '',
@@ -294,19 +345,20 @@ class FieldOrder {
       quantity: json['quantity'] as String? ?? '',
       date: json['date'] as String? ?? '',
       time: json['time'] as String? ?? '',
-      location: project?['projectLocation'] as String? ??
+      location:
+          project?['projectLocation'] as String? ??
           project?['siteName'] as String? ??
           json['deliveryAddress'] as String? ??
           vendorLocation?['address'] as String? ??
           '',
       isActive: json['isActive'] as bool? ?? false,
       status: json['status'] as String? ?? '',
-      deliveryStatus: mapDeliveryStatus(json['deliveryStatus'] as String?),
       vendorDetail: (vendorHandler != null || vendorLocation != null)
           ? VendorDetail(
               handlerName: vendorHandler?['name'] as String? ?? '',
               contactNo: vendorHandler?['phone'] as String? ?? '',
-              plantLocation: vendorLocation?['address'] as String? ??
+              plantLocation:
+                  vendorLocation?['address'] as String? ??
                   vendorLocation?['plantName'] as String? ??
                   '',
             )

@@ -109,10 +109,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       ShellRoute(
-        builder: (context, state, child) => MainScaffold(
-          location: state.uri.toString(),
-          child: child,
-        ),
+        builder: (context, state, child) =>
+            MainScaffold(location: state.uri.toString(), child: child),
         routes: [
           GoRoute(
             path: '/home',

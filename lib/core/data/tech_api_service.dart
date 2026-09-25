@@ -203,6 +203,11 @@ class TechApiService {
     await _dio.put('$_base/orders/$orderId/tm/$tmId', data: form);
   }
 
+  /// W32: the technician marks one truck as reached site.
+  Future<void> markTmReached(String orderId, String tmId) async {
+    await _dio.put('$_base/orders/$orderId/tm/$tmId/reached');
+  }
+
   Future<void> deleteTm(String orderId, String tmId) async {
     await _dio.delete('$_base/orders/$orderId/tm/$tmId');
   }

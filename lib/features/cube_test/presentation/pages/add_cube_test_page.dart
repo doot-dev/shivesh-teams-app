@@ -277,7 +277,7 @@ class _AddCubeTestPageState extends ConsumerState<AddCubeTestPage> {
                           Wrap(
                             spacing: AppSpacing.sm + 2,
                             runSpacing: AppSpacing.sm + 2,
-                            children: CubeTestPeriod.values
+                            children: selectableCubeTestPeriods
                                 .map((p) => _PeriodChip(
                                       label: p.label,
                                       selected: _period == p,

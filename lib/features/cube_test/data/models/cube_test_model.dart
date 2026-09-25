@@ -6,7 +6,16 @@ import 'package:intl/intl.dart';
 /// never `.name`. A standard period means the test date is COMPUTED as
 /// castingDate + N days; [custom] means the technician supplies the date of a
 /// test that already happened (the backend rejects a future custom date).
-enum CubeTestPeriod { sevenDays, fourteenDays, twentyOneDays, custom }
+enum CubeTestPeriod { sevenDays, fourteenDays, fifteenDays, twentyOneDays, twentyEightDays, custom }
+
+/// D21: what the picker offers for NEW tests. 14 and 21 days stay in the enum
+/// only so older records still parse and show a label.
+const selectableCubeTestPeriods = [
+  CubeTestPeriod.sevenDays,
+  CubeTestPeriod.fifteenDays,
+  CubeTestPeriod.twentyEightDays,
+  CubeTestPeriod.custom,
+];
 
 extension CubeTestPeriodX on CubeTestPeriod {
   String get apiValue {
@@ -15,8 +24,12 @@ extension CubeTestPeriodX on CubeTestPeriod {
         return 'SEVEN_DAYS';
       case CubeTestPeriod.fourteenDays:
         return 'FOURTEEN_DAYS';
+      case CubeTestPeriod.fifteenDays:
+        return 'FIFTEEN_DAYS';
       case CubeTestPeriod.twentyOneDays:
         return 'TWENTYONE_DAYS';
+      case CubeTestPeriod.twentyEightDays:
+        return 'TWENTYEIGHT_DAYS';
       case CubeTestPeriod.custom:
         return 'CUSTOM';
     }
@@ -28,8 +41,12 @@ extension CubeTestPeriodX on CubeTestPeriod {
         return '7 days';
       case CubeTestPeriod.fourteenDays:
         return '14 days';
+      case CubeTestPeriod.fifteenDays:
+        return '15 days';
       case CubeTestPeriod.twentyOneDays:
         return '21 days';
+      case CubeTestPeriod.twentyEightDays:
+        return '28 days';
       case CubeTestPeriod.custom:
         return 'Custom date';
     }
@@ -42,8 +59,12 @@ extension CubeTestPeriodX on CubeTestPeriod {
         return 7;
       case CubeTestPeriod.fourteenDays:
         return 14;
+      case CubeTestPeriod.fifteenDays:
+        return 15;
       case CubeTestPeriod.twentyOneDays:
         return 21;
+      case CubeTestPeriod.twentyEightDays:
+        return 28;
       case CubeTestPeriod.custom:
         return null;
     }
@@ -53,8 +74,12 @@ extension CubeTestPeriodX on CubeTestPeriod {
     switch (v) {
       case 'FOURTEEN_DAYS':
         return CubeTestPeriod.fourteenDays;
+      case 'FIFTEEN_DAYS':
+        return CubeTestPeriod.fifteenDays;
       case 'TWENTYONE_DAYS':
         return CubeTestPeriod.twentyOneDays;
+      case 'TWENTYEIGHT_DAYS':
+        return CubeTestPeriod.twentyEightDays;
       case 'CUSTOM':
         return CubeTestPeriod.custom;
       case 'SEVEN_DAYS':
@@ -110,7 +135,8 @@ class CubeTest {
       createdAt == null ? '' : _dateTimeFmt.format(createdAt!);
 
   /// True once the scheduled testing date has arrived.
-  bool get isDue => !toDate.isAfter(DateTime.now());
+  /// Test date passed and no result yet (matches the server's DUE status).
+  bool get isDue => (fileUrl == null || fileUrl!.isEmpty) && !toDate.isAfter(DateTime.now());
 
   /// Whole days until the test is due; negative once it has passed.
   int get daysUntilDue {

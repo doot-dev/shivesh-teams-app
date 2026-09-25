@@ -47,7 +47,9 @@ String _fmtTimeAgo(String? iso) {
 /// looked like progress to the technician while the backend recorded no change
 /// at all. The order of these values also drives [DeliveryTracker], which
 /// renders one dot per value — adding a step here adds a dot there.
-enum DeliveryStatus { confirmed, onTheWay, reached }
+// W32: "Reached" is now its own server step (REACHED); "Delivered" (poured,
+// challan in) follows it. The tracker draws one dot per value.
+enum DeliveryStatus { confirmed, onTheWay, reached, delivered }
 
 extension DeliveryStatusLabel on DeliveryStatus {
   String get label {
@@ -58,6 +60,8 @@ extension DeliveryStatusLabel on DeliveryStatus {
         return 'On the way';
       case DeliveryStatus.reached:
         return 'Reached';
+      case DeliveryStatus.delivered:
+        return 'Delivered';
     }
   }
 
@@ -69,6 +73,8 @@ extension DeliveryStatusLabel on DeliveryStatus {
       case DeliveryStatus.onTheWay:
         return 'IN_TRANSIT';
       case DeliveryStatus.reached:
+        return 'REACHED';
+      case DeliveryStatus.delivered:
         return 'DELIVERED';
     }
   }
@@ -78,8 +84,10 @@ extension DeliveryStatusLabel on DeliveryStatus {
       case DeliveryStatus.confirmed:
         return 0.0;
       case DeliveryStatus.onTheWay:
-        return 0.5;
+        return 0.33;
       case DeliveryStatus.reached:
+        return 0.67;
+      case DeliveryStatus.delivered:
         return 1.0;
     }
   }
@@ -89,9 +97,11 @@ DeliveryStatus mapDeliveryStatus(String? s) {
   switch (s) {
     case 'IN_TRANSIT':
       return DeliveryStatus.onTheWay;
+    case 'REACHED':
+      return DeliveryStatus.reached;
     case 'DELIVERED':
     case 'COMPLETED':
-      return DeliveryStatus.reached;
+      return DeliveryStatus.delivered;
     case 'ASSIGNED':
     default:
       return DeliveryStatus.confirmed;
@@ -116,7 +126,21 @@ class TmDetail {
     this.challanUrl,
     this.status = DeliveryStatus.confirmed,
     this.createdAt,
+    this.approvalStatus = 'PENDING',
+    this.rejectionReason,
   });
+
+  /// Office review: PENDING / ACCEPTED / REJECTED. Once reviewed, the truck is
+  /// locked in the app (P1.4).
+  final String approvalStatus;
+  final String? rejectionReason;
+
+  bool get isReviewed => approvalStatus != 'PENDING';
+  bool get isRejected => approvalStatus == 'REJECTED';
+
+  /// "Reached site" can be tapped while the truck is assigned or on the way.
+  bool get canMarkReached =>
+      !isReviewed && (status == DeliveryStatus.confirmed || status == DeliveryStatus.onTheWay);
 
   final String id;
   final String tmNumber;
@@ -147,6 +171,8 @@ class TmDetail {
         challanUrl: json['challanUrl'] as String?,
         status: mapDeliveryStatus(json['status'] as String?),
         createdAt: _parseDate(json['createdAt']),
+        approvalStatus: json['approvalStatus'] as String? ?? 'PENDING',
+        rejectionReason: json['rejectionReason'] as String?,
       );
 }
 

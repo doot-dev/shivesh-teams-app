@@ -25,8 +25,10 @@ class OrderCard extends StatelessWidget {
 
   BadgeTone get _statusTone {
     switch (order.deliveryStatus) {
-      case DeliveryStatus.reached:
+      case DeliveryStatus.delivered:
         return BadgeTone.success;
+      case DeliveryStatus.reached:
+        return BadgeTone.info;
       case DeliveryStatus.onTheWay:
         return BadgeTone.info;
       case DeliveryStatus.confirmed:

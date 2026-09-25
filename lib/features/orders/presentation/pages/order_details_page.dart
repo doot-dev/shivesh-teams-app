@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,8 +23,10 @@ class OrderDetailsPage extends ConsumerStatefulWidget {
 
 class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController =
-      TabController(length: 2, vsync: this);
+  late final TabController _tabController = TabController(
+    length: 2,
+    vsync: this,
+  );
   final _messageController = TextEditingController();
   bool _isSending = false;
 
@@ -44,9 +47,9 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage>
       ref.invalidate(orderByIdProvider(widget.orderId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -87,8 +90,10 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage>
                       children: [
                         IconButton(
                           onPressed: () => context.pop(),
-                          icon: const Icon(Icons.arrow_back_rounded,
-                              color: Colors.white),
+                          icon: const Icon(
+                            Icons.arrow_back_rounded,
+                            color: Colors.white,
+                          ),
                           tooltip: 'Back',
                         ),
                         Expanded(
@@ -108,8 +113,7 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage>
                                       ? o!.clientName
                                       : 'Assignment',
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.72),
+                                    color: Colors.white.withValues(alpha: 0.72),
                                   ),
                                 ),
                                 loading: () => const Padding(
@@ -137,15 +141,18 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage>
                       child: TabBar(
                         controller: _tabController,
                         labelColor: AppColors.primaryDark,
-                        unselectedLabelColor:
-                            Colors.white.withValues(alpha: 0.85),
-                        labelStyle: theme.textTheme.labelLarge
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        unselectedLabelColor: Colors.white.withValues(
+                          alpha: 0.85,
+                        ),
+                        labelStyle: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                         unselectedLabelStyle: theme.textTheme.labelLarge,
                         dividerColor: Colors.transparent,
                         indicatorSize: TabBarIndicatorSize.tab,
-                        splashBorderRadius:
-                            BorderRadius.circular(AppRadius.pill),
+                        splashBorderRadius: BorderRadius.circular(
+                          AppRadius.pill,
+                        ),
                         indicator: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -311,7 +318,9 @@ class _DetailsTab extends StatelessWidget {
                 DetailRow(
                   icon: Icons.factory_outlined,
                   label: 'Vendor',
-                  value: order.vendor.isNotEmpty ? order.vendor : 'Not assigned',
+                  value: order.vendor.isNotEmpty
+                      ? order.vendor
+                      : 'Not assigned',
                 ),
                 DetailRow(
                   icon: Icons.person_outline_rounded,
@@ -416,9 +425,9 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update status: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not update status: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -437,8 +446,10 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
           Row(
             children: [
               Expanded(
-                child: Text('Delivery status',
-                    style: theme.textTheme.titleSmall),
+                child: Text(
+                  'Delivery status',
+                  style: theme.textTheme.titleSmall,
+                ),
               ),
               if (_saving)
                 const SizedBox(
@@ -453,8 +464,9 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Tap to update',
-            style: theme.textTheme.labelSmall
-                ?.copyWith(color: AppColors.textMuted),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppColors.textMuted,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
@@ -514,8 +526,11 @@ class _CubeTestEntry extends StatelessWidget {
               gradient: AppColors.softGradient,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: const Icon(Icons.science_rounded,
-                color: Colors.white, size: 21),
+            child: const Icon(
+              Icons.science_rounded,
+              color: Colors.white,
+              size: 21,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -526,8 +541,9 @@ class _CubeTestEntry extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Log casting details and attach results',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textMuted),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -564,14 +580,19 @@ class _ClosedOrderNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.history_rounded,
-              size: 16, color: AppColors.textMuted),
+          const Icon(
+            Icons.history_rounded,
+            size: 16,
+            color: AppColors.textMuted,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               message,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.textMuted, height: 1.35),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+                height: 1.35,
+              ),
             ),
           ),
         ],
@@ -609,17 +630,25 @@ class _TmCardState extends ConsumerState<_TmCard> {
       _savingStatus = true;
     });
     try {
-      await ref.read(techApiProvider).updateTm(
-            widget.orderId,
-            widget.tm.id,
-            status: next.apiValue,
-          );
+      // W32: "Reached" goes through its own endpoint, which stamps the arrival
+      // time and tells the client they may now check (or reject) the truck.
+      if (next == DeliveryStatus.reached) {
+        await ref
+            .read(techApiProvider)
+            .markTmReached(widget.orderId, widget.tm.id);
+      } else {
+        await ref
+            .read(techApiProvider)
+            .updateTm(widget.orderId, widget.tm.id, status: next.apiValue);
+      }
       ref.invalidate(orderByIdProvider(widget.orderId));
     } catch (e) {
       if (mounted) {
         setState(() => _selectedStatus = previous);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update TM status: $e')),
+          SnackBar(
+            content: Text(_serverMessage(e, 'Could not update TM status')),
+          ),
         );
       }
     } finally {
@@ -657,7 +686,7 @@ class _TmCardState extends ConsumerState<_TmCard> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete: $e')),
+          SnackBar(content: Text(_serverMessage(e, 'Failed to delete'))),
         );
         setState(() => _deleting = false);
       }
@@ -682,8 +711,11 @@ class _TmCardState extends ConsumerState<_TmCard> {
                   color: AppColors.blue50,
                   borderRadius: BorderRadius.circular(AppRadius.sm + 2),
                 ),
-                child: const Icon(Icons.local_shipping_rounded,
-                    size: 19, color: AppColors.primary),
+                child: const Icon(
+                  Icons.local_shipping_rounded,
+                  size: 19,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -693,25 +725,32 @@ class _TmCardState extends ConsumerState<_TmCard> {
                     Text(tm.tmNumber, style: theme.textTheme.titleSmall),
                     Text(
                       'Truck ${tm.truckNo}',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: AppColors.textMuted),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
               ),
-              _deleting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded,
-                          size: 20, color: AppColors.danger),
-                      onPressed: _confirmDelete,
-                      tooltip: 'Delete TM',
-                      visualDensity: VisualDensity.compact,
-                    ),
+              if (tm.isReviewed)
+                const SizedBox.shrink()
+              else
+                _deleting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                          color: AppColors.danger,
+                        ),
+                        onPressed: _confirmDelete,
+                        tooltip: 'Delete TM',
+                        visualDensity: VisualDensity.compact,
+                      ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -731,6 +770,36 @@ class _TmCardState extends ConsumerState<_TmCard> {
               icon: Icons.attach_file_rounded,
               label: 'Challan photo',
               value: 'Attached',
+            )
+          else if (!tm.isRejected)
+            // D13: the bill waits for this photo.
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Photo missing — the bill waits for it',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          if (tm.isReviewed)
+            DetailRow(
+              icon: tm.isRejected
+                  ? Icons.block_rounded
+                  : Icons.verified_rounded,
+              label: 'Office review',
+              value: tm.isRejected
+                  ? 'Rejected${tm.rejectionReason != null ? ' — ${tm.rejectionReason}' : ''}'
+                  : 'Accepted (locked)',
             ),
           const SizedBox(height: AppSpacing.md),
           const FieldLabel('Status'),
@@ -753,14 +822,17 @@ class _TmCardState extends ConsumerState<_TmCard> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.keyboard_arrow_down_rounded,
-                      color: AppColors.textMuted),
+                  : const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.textMuted,
+                    ),
               items: DeliveryStatus.values
-                  .map((s) => DropdownMenuItem(
-                        value: s,
-                        child:
-                            Text(s.label, style: theme.textTheme.bodyMedium),
-                      ))
+                  .map(
+                    (s) => DropdownMenuItem(
+                      value: s,
+                      child: Text(s.label, style: theme.textTheme.bodyMedium),
+                    ),
+                  )
                   .toList(),
               onChanged: _savingStatus
                   ? null
@@ -834,23 +906,27 @@ class _CommentBubble extends StatelessWidget {
     final isMe = comment.isMe;
 
     return Column(
-      crossAxisAlignment:
-          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isMe
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment:
-              isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment: isMe
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
           children: [
             Text(
               isMe ? 'You' : comment.author,
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(width: 6),
             Text(
               comment.timeAgo,
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(color: AppColors.textMuted),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
             ),
           ],
         ),
@@ -966,8 +1042,11 @@ class _MessageInput extends StatelessWidget {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.send_rounded,
-                        color: Colors.white, size: 20),
+                    : const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
               ),
             ),
           ],
@@ -975,4 +1054,16 @@ class _MessageInput extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The server's own message (e.g. "Order … is locked since …", "already
+/// accepted") instead of a raw exception dump.
+String _serverMessage(Object e, String fallback) {
+  if (e is DioException) {
+    final data = e.response?.data;
+    if (data is Map && data['message'] is String) {
+      return data['message'] as String;
+    }
+  }
+  return fallback;
 }

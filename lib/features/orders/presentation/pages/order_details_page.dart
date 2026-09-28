@@ -328,7 +328,7 @@ class _DetailsTab extends StatelessWidget {
             index: step++,
             child: CreditBandBar(
               band: order.creditBand!,
-              usedPct: order.creditUsedPct,
+              position: order.creditPosition,
             ),
           ),
           const SizedBox(height: AppSpacing.md),

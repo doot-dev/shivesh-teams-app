@@ -93,7 +93,9 @@ class _NewOrderPageState extends ConsumerState<NewOrderPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(serverMessage(e, 'Could not place the order'))),
+          SnackBar(
+            content: Text(serverMessage(e, 'Could not place the order')),
+          ),
         );
       }
     } finally {
@@ -216,7 +218,9 @@ class _NewOrderPageState extends ConsumerState<NewOrderPage> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.schedule_outlined),
                     title: Text(
-                      _time == null ? 'Time (optional)' : _time!.format(context),
+                      _time == null
+                          ? 'Time (optional)'
+                          : _time!.format(context),
                     ),
                     onTap: _pickTime,
                   ),

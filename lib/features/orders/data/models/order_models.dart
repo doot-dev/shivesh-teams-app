@@ -274,6 +274,7 @@ class FieldOrder {
     this.placedByPhone,
     this.creditBand,
     this.creditUsedPct,
+    this.creditPosition,
     this.vendorRowId,
   });
 
@@ -284,6 +285,9 @@ class FieldOrder {
   /// Only on the single-order response, with the 0–100 fill.
   final String? creditBand;
   final int? creditUsedPct;
+
+  /// Where the gauge marker sits, 0–100.
+  final int? creditPosition;
 
   /// docs/06: the client's person who placed it from the app — who to call at
   /// site. "Rakesh Pawar (Site Engineer)". Null when the office placed it.
@@ -380,6 +384,7 @@ class FieldOrder {
       status: json['status'] as String? ?? '',
       creditBand: json['creditBand'] as String?,
       creditUsedPct: (json['creditUsedPct'] as num?)?.toInt(),
+      creditPosition: (json['creditPosition'] as num?)?.toInt(),
       vendorRowId: firstVendor?['id'] as String?,
       vendorDetail: (vendorHandler != null || vendorLocation != null)
           ? VendorDetail(
@@ -423,8 +428,7 @@ class TechProject {
     name: j['projectName'] as String? ?? '',
     clientName:
         (j['client'] as Map<String, dynamic>?)?['companyName'] as String? ?? '',
-    address:
-        j['address'] as String? ?? j['projectLocation'] as String? ?? '',
+    address: j['address'] as String? ?? j['projectLocation'] as String? ?? '',
     products: [
       for (final p in (j['products'] as List<dynamic>? ?? const []))
         (
@@ -438,7 +442,11 @@ class TechProject {
 
 /// A vendor, its plants and each plant's handlers (GET /tech/vendors).
 class VendorOption {
-  const VendorOption({required this.id, required this.name, required this.plants});
+  const VendorOption({
+    required this.id,
+    required this.name,
+    required this.plants,
+  });
 
   final int id;
   final String name;
@@ -455,7 +463,11 @@ class VendorOption {
 }
 
 class PlantOption {
-  const PlantOption({required this.id, required this.name, required this.handlers});
+  const PlantOption({
+    required this.id,
+    required this.name,
+    required this.handlers,
+  });
 
   final int id;
   final String name;

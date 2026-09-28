@@ -390,6 +390,13 @@ class _DetailsTab extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
 
+        if (order.extras.isNotEmpty || order.extrasOpen) ...[
+          StaggeredItem(
+            index: step++,
+            child: _ExtrasCard(order: order),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         StaggeredItem(
           index: step++,
           child: _CubeTestEntry(orderId: orderId),
@@ -1131,6 +1138,199 @@ class _MessageInput extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Extra services (2026-09-29): pumping, part load or other, billed with the
+/// concrete. FTs add them from Confirmed until the order completes; removing
+/// is for accounts in the panel.
+class _ExtrasCard extends StatelessWidget {
+  const _ExtrasCard({required this.order});
+  final FieldOrder order;
+
+  String _inr(double v) =>
+      '₹${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 2)}';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = order.extras.fold<double>(0, (s, x) => s + x.amount);
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Extra services',
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+              if (order.extrasOpen)
+                TextButton.icon(
+                  onPressed: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    showDragHandle: true,
+                    builder: (_) => _AddExtraSheet(orderId: order.id),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add'),
+                ),
+            ],
+          ),
+          if (order.extras.isEmpty)
+            Text(
+              'Pumping, part load or other charges agreed in the PO.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
+            )
+          else ...[
+            for (final x in order.extras)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(x.name)),
+                    Text(
+                      _inr(x.amount),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            const Divider(),
+            Row(
+              children: [
+                const Expanded(child: Text('Total extras')),
+                Text(
+                  _inr(total),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AddExtraSheet extends ConsumerStatefulWidget {
+  const _AddExtraSheet({required this.orderId});
+  final String orderId;
+
+  @override
+  ConsumerState<_AddExtraSheet> createState() => _AddExtraSheetState();
+}
+
+class _AddExtraSheetState extends ConsumerState<_AddExtraSheet> {
+  static const _kinds = {
+    'PUMPING': 'Pumping',
+    'PART_LOAD': 'Part load',
+    'OTHER': 'Other',
+  };
+  String _kind = 'PUMPING';
+  final _name = TextEditingController(text: 'Pumping');
+  final _amount = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _amount.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final amount = double.tryParse(_amount.text.trim());
+    if (_kind == 'OTHER' && (amount == null || _name.text.trim().isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter the service name and price')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(techApiProvider)
+          .addExtra(
+            widget.orderId,
+            kind: _kind,
+            name: _name.text.trim(),
+            amount: amount,
+          );
+      ref.invalidate(orderByIdProvider(widget.orderId));
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(serverMessage(e, 'Could not add it'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Add extra service',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final e in _kinds.entries)
+                ChoiceChip(
+                  label: Text(e.value),
+                  selected: _kind == e.key,
+                  onSelected: (_) => setState(() {
+                    _kind = e.key;
+                    _name.text = e.key == 'OTHER' ? '' : e.value;
+                  }),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Service name'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _amount,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Price ₹',
+              helperText: _kind == 'OTHER'
+                  ? null
+                  : 'Leave blank to use the PO rate of this project',
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _saving ? null : _save,
+            child: Text(_saving ? 'Adding…' : 'Add to order'),
+          ),
+        ],
       ),
     );
   }

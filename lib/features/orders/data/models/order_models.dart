@@ -276,7 +276,15 @@ class FieldOrder {
     this.creditUsedPct,
     this.creditPosition,
     this.vendorRowId,
+    this.extras = const [],
   });
+
+  /// Extra services on the order: pumping, part load, other (2026-09-29).
+  final List<({String name, double amount})> extras;
+
+  /// Extras can be added from Confirmed until the order completes.
+  bool get extrasOpen =>
+      const ['CONFIRMED', 'DISPATCHED', 'DELAYED', 'REACHED'].contains(status);
 
   /// The order's first vendor row (OrderVendor.id) — what "Change vendor" edits.
   final String? vendorRowId;
@@ -386,6 +394,13 @@ class FieldOrder {
       creditUsedPct: (json['creditUsedPct'] as num?)?.toInt(),
       creditPosition: (json['creditPosition'] as num?)?.toInt(),
       vendorRowId: firstVendor?['id'] as String?,
+      extras: [
+        for (final x in (json['extras'] as List<dynamic>? ?? const []))
+          (
+            name: (x as Map<String, dynamic>)['name'] as String? ?? '',
+            amount: (x['amount'] as num?)?.toDouble() ?? 0,
+          ),
+      ],
       vendorDetail: (vendorHandler != null || vendorLocation != null)
           ? VendorDetail(
               handlerName: vendorHandler?['name'] as String? ?? '',

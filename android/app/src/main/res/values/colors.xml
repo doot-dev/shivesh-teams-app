@@ -4,4 +4,5 @@
          the native launch window hands off to the Flutter splash without the
          white flash Flutter's default template produces. -->
     <color name="brand_splash_background">#2131AF</color>
+    <color name="notification_color">#1E3A8A</color>
 </resources>

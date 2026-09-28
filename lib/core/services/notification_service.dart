@@ -73,7 +73,7 @@ class NotificationService {
         ?.createNotificationChannel(_androidChannel);
 
     const initSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('@drawable/ic_notification'),
       iOS: DarwinInitializationSettings(),
     );
     await _localNotifications.initialize(

@@ -109,6 +109,19 @@ class TechApiService {
         as String;
   }
 
+  /// Add pumping / part load / other. A blank [amount] uses the project's PO rate.
+  Future<void> addExtra(
+    String orderId, {
+    required String kind,
+    required String name,
+    double? amount,
+  }) async {
+    await _dio.post(
+      '$_base/orders/$orderId/extras',
+      data: {'kind': kind, 'name': name, 'amount': ?amount},
+    );
+  }
+
   Future<List<VendorOption>> getVendors() async {
     final res = await _dio.get('$_base/vendors');
     final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;

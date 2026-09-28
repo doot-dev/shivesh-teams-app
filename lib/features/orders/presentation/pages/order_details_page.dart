@@ -323,6 +323,14 @@ class _DetailsTab extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
         ],
 
+        if (order.creditBand != null) ...[
+          StaggeredItem(
+            index: step++,
+            child: CreditBandBar(band: order.creditBand!),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+
         StaggeredItem(
           index: step++,
           child: AppCard(

@@ -260,7 +260,12 @@ class FieldOrder {
     this.comments = const [],
     this.placedBy,
     this.placedByPhone,
+    this.creditBand,
   });
+
+  /// GREEN / ORANGE / RED — the client's credit health, never the amounts.
+  /// Only on the single-order response.
+  final String? creditBand;
 
   /// docs/06: the client's person who placed it from the app — who to call at
   /// site. "Rakesh Pawar (Site Engineer)". Null when the office placed it.
@@ -353,6 +358,7 @@ class FieldOrder {
           '',
       isActive: json['isActive'] as bool? ?? false,
       status: json['status'] as String? ?? '',
+      creditBand: json['creditBand'] as String?,
       vendorDetail: (vendorHandler != null || vendorLocation != null)
           ? VendorDetail(
               handlerName: vendorHandler?['name'] as String? ?? '',

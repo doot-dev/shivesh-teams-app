@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -83,12 +84,24 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     FadeSlideIn(
-                      child: Text(
-                        'Orders',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Orders',
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          // FTs book orders for their projects (2026-09-28).
+                          FilledButton.tonalIcon(
+                            onPressed: () => context.push('/new-order'),
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('New order'),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),

@@ -71,6 +71,74 @@ class TechApiService {
     await _dio.put('$_base/orders/$orderId/status', data: {'status': status});
   }
 
+  // ─── Booking (2026-09-28: FTs work every order of their projects) ─────────
+
+  /// The projects this technician is on, with their products.
+  Future<List<TechProject>> getMyProjects() async {
+    final res = await _dio.get('$_base/projects');
+    final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
+    return data
+        .map((e) => TechProject.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Book an order for one of those projects. Returns the new order code.
+  Future<String> createOrder({
+    required String projectId,
+    required String productName,
+    required String productGrade,
+    required String quantity,
+    required String date,
+    String? time,
+    String? deliveryAddress,
+  }) async {
+    final res = await _dio.post(
+      '$_base/orders',
+      data: {
+        'projectId': projectId,
+        'productName': productName,
+        'productGrade': productGrade,
+        'quantity': quantity,
+        'date': date,
+        'time': ?time,
+        'deliveryAddress': ?deliveryAddress,
+      },
+    );
+    return ((res.data as Map<String, dynamic>)['data']
+            as Map<String, dynamic>)['orderId']
+        as String;
+  }
+
+  Future<List<VendorOption>> getVendors() async {
+    final res = await _dio.get('$_base/vendors');
+    final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
+    return data
+        .map((e) => VendorOption.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Set the order's vendor: edits [orderVendorId] when the order has one,
+  /// adds it otherwise.
+  Future<void> setOrderVendor(
+    String orderId, {
+    String? orderVendorId,
+    required int vendorId,
+    int? plantId,
+    int? handlerId,
+  }) async {
+    final body = {
+      'vendorId': vendorId,
+      'vendorLocationId': ?plantId,
+      'vendorHandlerId': ?handlerId,
+      'orderVendorId': ?orderVendorId,
+    };
+    if (orderVendorId == null) {
+      await _dio.post('$_base/orders/$orderId/vendor', data: body);
+    } else {
+      await _dio.put('$_base/orders/$orderId/vendor', data: body);
+    }
+  }
+
   Future<List<Comment>> getComments(String orderId) async {
     final res = await _dio.get('$_base/orders/$orderId/comments');
     final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;

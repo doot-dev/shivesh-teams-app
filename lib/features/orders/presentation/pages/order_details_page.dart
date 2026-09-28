@@ -326,7 +326,10 @@ class _DetailsTab extends StatelessWidget {
         if (order.creditBand != null) ...[
           StaggeredItem(
             index: step++,
-            child: CreditBandBar(band: order.creditBand!),
+            child: CreditBandBar(
+              band: order.creditBand!,
+              usedPct: order.creditUsedPct,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -337,7 +340,27 @@ class _DetailsTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Vendor details', style: theme.textTheme.titleSmall),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Vendor details',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    // FTs set the plant themselves (2026-09-28).
+                    TextButton.icon(
+                      onPressed: () => showModalBottomSheet<void>(
+                        context: context,
+                        isScrollControlled: true,
+                        showDragHandle: true,
+                        builder: (_) => _VendorSheet(order: order),
+                      ),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: Text(order.vendor.isEmpty ? 'Add' : 'Change'),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 DetailRow(
                   icon: Icons.factory_outlined,
@@ -447,7 +470,7 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_serverMessage(e, 'Could not update status'))),
+          SnackBar(content: Text(serverMessage(e, 'Could not update status'))),
         );
       }
     } finally {
@@ -459,6 +482,7 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final current = widget.order.status;
+    final next = fieldNextStatuses(current);
 
     return AppCard(
       child: Column(
@@ -498,7 +522,9 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
           ],
           const SizedBox(height: AppSpacing.lg),
           Text(
-            'Tap to update',
+            next.isEmpty
+                ? 'Waiting for the office to confirm this order'
+                : 'Tap to update',
             style: theme.textTheme.labelSmall?.copyWith(
               color: AppColors.textMuted,
             ),
@@ -507,34 +533,42 @@ class _DeliveryStatusCardState extends ConsumerState<_DeliveryStatusCard> {
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
-            children: fieldStatuses.map((s) {
-              final selected = s == current;
-              return PressableScale(
-                onTap: _saving ? null : () => _update(s),
-                child: AnimatedContainer(
-                  duration: AppMotion.fast,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.sm + 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected ? AppColors.primary : AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(
-                      color: selected ? AppColors.primary : AppColors.border,
+            // Only steps the server allows from here, plus the current one.
+            children: fieldStatuses
+                .where((s) => s == current || next.contains(s))
+                .map((s) {
+                  final selected = s == current;
+                  return PressableScale(
+                    onTap: _saving ? null : () => _update(s),
+                    child: AnimatedContainer(
+                      duration: AppMotion.fast,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.sm + 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected ? AppColors.primary : AppColors.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        border: Border.all(
+                          color: selected
+                              ? AppColors.primary
+                              : AppColors.border,
+                        ),
+                        boxShadow: selected ? AppColors.shadowSm : null,
+                      ),
+                      child: Text(
+                        statusLabel(s),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: selected
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                    boxShadow: selected ? AppColors.shadowSm : null,
-                  ),
-                  child: Text(
-                    statusLabel(s),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: selected ? Colors.white : AppColors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+                  );
+                })
+                .toList(),
           ),
         ],
       ),
@@ -682,7 +716,7 @@ class _TmCardState extends ConsumerState<_TmCard> {
         setState(() => _selectedStatus = previous);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_serverMessage(e, 'Could not update TM status')),
+            content: Text(serverMessage(e, 'Could not update TM status')),
           ),
         );
       }
@@ -721,7 +755,7 @@ class _TmCardState extends ConsumerState<_TmCard> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_serverMessage(e, 'Failed to delete'))),
+          SnackBar(content: Text(serverMessage(e, 'Failed to delete'))),
         );
         setState(() => _deleting = false);
       }
@@ -1102,9 +1136,133 @@ class _MessageInput extends StatelessWidget {
   }
 }
 
+/// Pick the order's vendor, plant and handler; saves over the current one.
+class _VendorSheet extends ConsumerStatefulWidget {
+  const _VendorSheet({required this.order});
+  final FieldOrder order;
+
+  @override
+  ConsumerState<_VendorSheet> createState() => _VendorSheetState();
+}
+
+class _VendorSheetState extends ConsumerState<_VendorSheet> {
+  VendorOption? _vendor;
+  PlantOption? _plant;
+  int? _handlerId;
+  bool _saving = false;
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(techApiProvider)
+          .setOrderVendor(
+            widget.order.id,
+            orderVendorId: widget.order.vendorRowId,
+            vendorId: _vendor!.id,
+            plantId: _plant?.id,
+            handlerId: _handlerId,
+          );
+      ref.invalidate(orderByIdProvider(widget.order.id));
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(serverMessage(e, 'Could not save the vendor')),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vendors = ref.watch(vendorOptionsProvider);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: vendors.when(
+        loading: () => const SizedBox(
+          height: 160,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (e, _) => Text(serverMessage(e, 'Could not load vendors')),
+        data: (list) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Vendor', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<VendorOption>(
+              initialValue: _vendor,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Vendor'),
+              items: [
+                for (final v in list)
+                  DropdownMenuItem(value: v, child: Text(v.name)),
+              ],
+              onChanged: (v) => setState(() {
+                _vendor = v;
+                _plant = v != null && v.plants.length == 1
+                    ? v.plants.first
+                    : null;
+                _handlerId = null;
+              }),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<PlantOption>(
+              key: ValueKey('plant-${_vendor?.id}'),
+              initialValue: _plant,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Plant'),
+              items: [
+                for (final p in _vendor?.plants ?? const <PlantOption>[])
+                  DropdownMenuItem(value: p, child: Text(p.name)),
+              ],
+              onChanged: (p) => setState(() {
+                _plant = p;
+                _handlerId = null;
+              }),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              key: ValueKey('handler-${_plant?.id}'),
+              initialValue: _handlerId,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Handler (optional)',
+              ),
+              items: [
+                for (final h in _plant?.handlers ?? const [])
+                  DropdownMenuItem(
+                    value: h.id,
+                    child: Text('${h.name} · ${h.phone}'),
+                  ),
+              ],
+              onChanged: (h) => setState(() => _handlerId = h),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _vendor == null || _saving ? null : _save,
+              child: Text(_saving ? 'Saving…' : 'Save vendor'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The server's own message (e.g. "Order … is locked since …", "already
 /// accepted") instead of a raw exception dump.
-String _serverMessage(Object e, String fallback) {
+String serverMessage(Object e, String fallback) {
   if (e is DioException) {
     final data = e.response?.data;
     if (data is Map && data['message'] is String) {

@@ -16,6 +16,7 @@ import 'features/cube_test/presentation/pages/all_cube_tests_page.dart';
 import 'features/cube_test/presentation/pages/cube_tests_page.dart';
 import 'features/home/presentation/pages/home_page.dart';
 import 'features/notifications/presentation/pages/notifications_page.dart';
+import 'features/orders/presentation/pages/new_order_page.dart';
 import 'features/orders/presentation/pages/order_details_page.dart';
 import 'features/orders/presentation/pages/orders_page.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
@@ -84,6 +85,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/change-password',
         builder: (context, state) => const ChangePasswordPage(),
+      ),
+      GoRoute(
+        path: '/new-order',
+        builder: (context, state) => const NewOrderPage(),
       ),
       GoRoute(
         path: '/orders/:id',

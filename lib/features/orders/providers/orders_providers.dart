@@ -117,3 +117,13 @@ final todayOrderProvider = FutureProvider<FieldOrder?>((ref) async {
   final orders = await ref.watch(activeOrdersProvider.future);
   return orders.firstOrNull;
 });
+
+/// Projects this FT can book for, and the vendor catalogue. Kept for the
+/// session; pull-to-refresh on the booking page re-reads them.
+final myProjectsProvider = FutureProvider<List<TechProject>>(
+  (ref) => ref.read(techApiProvider).getMyProjects(),
+);
+
+final vendorOptionsProvider = FutureProvider<List<VendorOption>>(
+  (ref) => ref.read(techApiProvider).getVendors(),
+);

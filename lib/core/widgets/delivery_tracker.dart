@@ -19,14 +19,15 @@ class DeliveryTracker extends StatelessWidget {
     this.compact = false,
   });
 
-  final OrderStep status;
+  /// Null while the order is NEW (the office has not confirmed it): no step done.
+  final OrderStep? status;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     const steps = OrderStep.values;
-    final currentIndex = steps.indexOf(status);
+    final currentIndex = status == null ? -1 : steps.indexOf(status!);
 
     return Column(
       children: [
@@ -163,7 +164,7 @@ class _Connector extends StatelessWidget {
 class DeliveryProgressBar extends StatelessWidget {
   const DeliveryProgressBar({super.key, required this.status});
 
-  final OrderStep status;
+  final OrderStep? status;
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +172,7 @@ class DeliveryProgressBar extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: status.progress.clamp(0.06, 1.0)),
+        tween: Tween(begin: 0, end: (status?.progress ?? 0).clamp(0.06, 1.0)),
         duration: AppMotion.slow,
         curve: AppMotion.ease,
         builder: (context, value, _) => LinearProgressIndicator(

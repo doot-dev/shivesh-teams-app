@@ -111,6 +111,18 @@ extension OrderStepLabel on OrderStep {
 /// Statuses a technician may set, in the order the buttons show.
 const fieldStatuses = ['DISPATCHED', 'DELAYED', 'REACHED', 'COMPLETED'];
 
+/// What a technician may move an order to from [status] — the field side of
+/// ORDER_TRANSITIONS in the backend's helper/orderStatus.js. Empty for NEW:
+/// the office confirms first, and the server would refuse any other step.
+List<String> fieldNextStatuses(String status) =>
+    const {
+      'CONFIRMED': ['DISPATCHED', 'DELAYED'],
+      'DELAYED': ['DISPATCHED', 'REACHED'],
+      'DISPATCHED': ['DELAYED', 'REACHED'],
+      'REACHED': ['COMPLETED'],
+    }[status] ??
+    const [];
+
 /// "DISPATCHED" → "Dispatched".
 String statusLabel(String s) =>
     s.isEmpty ? '—' : s[0] + s.substring(1).toLowerCase();
@@ -261,11 +273,17 @@ class FieldOrder {
     this.placedBy,
     this.placedByPhone,
     this.creditBand,
+    this.creditUsedPct,
+    this.vendorRowId,
   });
 
+  /// The order's first vendor row (OrderVendor.id) — what "Change vendor" edits.
+  final String? vendorRowId;
+
   /// GREEN / ORANGE / RED — the client's credit health, never the amounts.
-  /// Only on the single-order response.
+  /// Only on the single-order response, with the 0–100 fill.
   final String? creditBand;
+  final int? creditUsedPct;
 
   /// docs/06: the client's person who placed it from the app — who to call at
   /// site. "Rakesh Pawar (Site Engineer)". Null when the office placed it.
@@ -292,7 +310,9 @@ class FieldOrder {
   /// DELAYED is shown on the step it was delayed at (before or after dispatch).
   bool get isDelayed => status == 'DELAYED';
 
-  OrderStep get step => switch (status) {
+  /// Null for NEW (not confirmed yet) and CANCELLED: no step done.
+  OrderStep? get step => switch (status) {
+    'NEW' || 'CANCELLED' || '' => null,
     'DISPATCHED' => OrderStep.dispatched,
     'REACHED' => OrderStep.reached,
     'COMPLETED' => OrderStep.completed,
@@ -359,6 +379,8 @@ class FieldOrder {
       isActive: json['isActive'] as bool? ?? false,
       status: json['status'] as String? ?? '',
       creditBand: json['creditBand'] as String?,
+      creditUsedPct: (json['creditUsedPct'] as num?)?.toInt(),
+      vendorRowId: firstVendor?['id'] as String?,
       vendorDetail: (vendorHandler != null || vendorLocation != null)
           ? VendorDetail(
               handlerName: vendorHandler?['name'] as String? ?? '',
@@ -377,4 +399,78 @@ class FieldOrder {
           .toList(),
     );
   }
+}
+
+/// A project this technician is on, with what can be ordered for it
+/// (GET /tech/projects).
+class TechProject {
+  const TechProject({
+    required this.projectId,
+    required this.name,
+    required this.clientName,
+    required this.address,
+    required this.products,
+  });
+
+  final String projectId;
+  final String name;
+  final String clientName;
+  final String address;
+  final List<({String name, String grade, String unit})> products;
+
+  factory TechProject.fromJson(Map<String, dynamic> j) => TechProject(
+    projectId: j['projectId'] as String,
+    name: j['projectName'] as String? ?? '',
+    clientName:
+        (j['client'] as Map<String, dynamic>?)?['companyName'] as String? ?? '',
+    address:
+        j['address'] as String? ?? j['projectLocation'] as String? ?? '',
+    products: [
+      for (final p in (j['products'] as List<dynamic>? ?? const []))
+        (
+          name: p['productName'] as String,
+          grade: p['productGrade'] as String,
+          unit: p['unit'] as String? ?? 'CBM',
+        ),
+    ],
+  );
+}
+
+/// A vendor, its plants and each plant's handlers (GET /tech/vendors).
+class VendorOption {
+  const VendorOption({required this.id, required this.name, required this.plants});
+
+  final int id;
+  final String name;
+  final List<PlantOption> plants;
+
+  factory VendorOption.fromJson(Map<String, dynamic> j) => VendorOption(
+    id: j['id'] as int,
+    name: j['companyName'] as String? ?? '',
+    plants: [
+      for (final l in (j['locations'] as List<dynamic>? ?? const []))
+        PlantOption.fromJson(l as Map<String, dynamic>),
+    ],
+  );
+}
+
+class PlantOption {
+  const PlantOption({required this.id, required this.name, required this.handlers});
+
+  final int id;
+  final String name;
+  final List<({int id, String name, String phone})> handlers;
+
+  factory PlantOption.fromJson(Map<String, dynamic> j) => PlantOption(
+    id: j['id'] as int,
+    name: j['plantName'] as String? ?? '',
+    handlers: [
+      for (final h in (j['handlers'] as List<dynamic>? ?? const []))
+        (
+          id: h['id'] as int,
+          name: h['name'] as String? ?? '',
+          phone: h['phone'] as String? ?? '',
+        ),
+    ],
+  );
 }

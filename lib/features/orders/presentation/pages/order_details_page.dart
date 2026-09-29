@@ -369,16 +369,31 @@ class _DetailsTab extends StatelessWidget {
                       ? order.vendor
                       : 'Not assigned',
                 ),
-                DetailRow(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Handler name',
-                  value: order.vendorDetail.handlerName,
-                ),
-                DetailRow(
-                  icon: Icons.phone_outlined,
-                  label: 'Contact no.',
-                  value: order.vendorDetail.contactNo,
-                ),
+                if (order.vendorDetail.handlers.isEmpty)
+                  const DetailRow(
+                    icon: Icons.person_outline_rounded,
+                    label: 'Handler',
+                    value: '',
+                  ),
+                // Tap to call any handler at the plant for order updates.
+                for (final (i, h) in order.vendorDetail.handlers.indexed)
+                  DetailRow(
+                    icon: Icons.person_outline_rounded,
+                    label: i == 0 && order.vendorDetail.handlerName.isNotEmpty
+                        ? 'Handler'
+                        : 'Plant contact',
+                    value: h.name.isEmpty ? h.phone : '${h.name}\n${h.phone}',
+                    trailing: IconButton(
+                      tooltip: 'Call ${h.phone}',
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(
+                        Icons.call_rounded,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                      onPressed: () => launchUrl(Uri.parse('tel:${h.phone}')),
+                    ),
+                  ),
                 DetailRow(
                   icon: Icons.place_outlined,
                   label: 'Plant location',

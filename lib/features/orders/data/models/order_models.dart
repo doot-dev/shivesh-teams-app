@@ -216,11 +216,16 @@ class VendorDetail {
     required this.handlerName,
     required this.contactNo,
     required this.plantLocation,
+    this.handlers = const [],
   });
 
   final String handlerName;
   final String contactNo;
   final String plantLocation;
+
+  /// Everyone at the plant the FT can call: the order's handler first, then
+  /// the plant's other handlers.
+  final List<({String name, String phone})> handlers;
 
   static const empty = VendorDetail(
     handlerName: '',
@@ -409,6 +414,7 @@ class FieldOrder {
                   vendorLocation?['address'] as String? ??
                   vendorLocation?['plantName'] as String? ??
                   '',
+              handlers: _plantHandlers(vendorHandler, vendorLocation),
             )
           : VendorDetail.empty,
       tmDetails: tmList
@@ -500,4 +506,21 @@ class PlantOption {
         ),
     ],
   );
+}
+
+List<({String name, String phone})> _plantHandlers(
+  Map<String, dynamic>? assigned,
+  Map<String, dynamic>? location,
+) {
+  final out = <({String name, String phone})>[];
+  for (final h in [
+    ?assigned,
+    ...((location?['handlers'] as List<dynamic>?) ?? const []),
+  ]) {
+    final m = h as Map<String, dynamic>;
+    final phone = (m['phone'] as String? ?? '').trim();
+    if (phone.isEmpty || out.any((x) => x.phone == phone)) continue;
+    out.add((name: m['name'] as String? ?? '', phone: phone));
+  }
+  return out;
 }

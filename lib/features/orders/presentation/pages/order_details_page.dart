@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/tech_api_provider.dart';
@@ -269,6 +268,13 @@ class _DetailsTab extends StatelessWidget {
                     icon: Icons.badge_outlined,
                     label: 'Placed by',
                     value: order.placedBy!,
+                    onTap: order.placedByPhone == null
+                        ? null
+                        : () => showPhoneActions(
+                            context,
+                            order.placedByPhone!,
+                            name: order.placedBy,
+                          ),
                     trailing: order.placedByPhone == null
                         ? null
                         : IconButton(
@@ -279,8 +285,10 @@ class _DetailsTab extends StatelessWidget {
                               size: 18,
                               color: AppColors.primary,
                             ),
-                            onPressed: () => launchUrl(
-                              Uri.parse('tel:${order.placedByPhone}'),
+                            onPressed: () => showPhoneActions(
+                              context,
+                              order.placedByPhone!,
+                              name: order.placedBy,
                             ),
                           ),
                   ),
@@ -383,15 +391,18 @@ class _DetailsTab extends StatelessWidget {
                         ? 'Handler'
                         : 'Plant contact',
                     value: h.name.isEmpty ? h.phone : '${h.name}\n${h.phone}',
+                    onTap: () =>
+                        showPhoneActions(context, h.phone, name: h.name),
                     trailing: IconButton(
-                      tooltip: 'Call ${h.phone}',
+                      tooltip: 'Call or copy ${h.phone}',
                       visualDensity: VisualDensity.compact,
                       icon: const Icon(
                         Icons.call_rounded,
                         size: 18,
                         color: AppColors.primary,
                       ),
-                      onPressed: () => launchUrl(Uri.parse('tel:${h.phone}')),
+                      onPressed: () =>
+                          showPhoneActions(context, h.phone, name: h.name),
                     ),
                   ),
                 DetailRow(
@@ -1317,6 +1328,14 @@ class _AddExtraSheetState extends ConsumerState<_AddExtraSheet> {
                 ChoiceChip(
                   label: Text(e.value),
                   selected: _kind == e.key,
+                  // Selected chip is filled primary, so its text must be white.
+                  labelStyle: TextStyle(
+                    color: _kind == e.key
+                        ? Colors.white
+                        : AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  checkmarkColor: Colors.white,
                   onSelected: (_) => setState(() {
                     _kind = e.key;
                     _name.text = e.key == 'OTHER' ? '' : e.value;

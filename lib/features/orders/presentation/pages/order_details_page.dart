@@ -263,10 +263,17 @@ class _DetailsTab extends StatelessWidget {
                   label: 'Client',
                   value: order.clientName,
                 ),
+                if (order.projectMaxQty != null)
+                  DetailRow(
+                    icon: Icons.straighten_outlined,
+                    label: 'Project max qty',
+                    value:
+                        '${order.projectMaxQty!.toStringAsFixed(order.projectMaxQty! % 1 == 0 ? 0 : 2)} CBM',
+                  ),
                 if (order.placedBy != null)
                   DetailRow(
                     icon: Icons.badge_outlined,
-                    label: 'Placed by',
+                    label: 'Added by',
                     value: order.placedBy!,
                     onTap: order.placedByPhone == null
                         ? null

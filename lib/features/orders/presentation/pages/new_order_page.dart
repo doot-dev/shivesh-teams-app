@@ -13,6 +13,7 @@ typedef _Product = ({String name, String grade, String unit});
 
 /// Book an order for one of this technician's projects (2026-09-28). The
 /// server tells the office, the client and the project's other FTs.
+/// Client first, then one of that client's projects (2026-10-02).
 class NewOrderPage extends ConsumerStatefulWidget {
   const NewOrderPage({super.key});
 
@@ -24,6 +25,7 @@ class _NewOrderPageState extends ConsumerState<NewOrderPage> {
   final _formKey = GlobalKey<FormState>();
   final _qty = TextEditingController();
   final _address = TextEditingController();
+  String? _clientId;
   TechProject? _project;
   _Product? _product;
   DateTime? _date;
@@ -35,6 +37,15 @@ class _NewOrderPageState extends ConsumerState<NewOrderPage> {
     _qty.dispose();
     _address.dispose();
     super.dispose();
+  }
+
+  /// A new client clears the project, product and address.
+  void _pickClient(String? id, List<TechProject> all) {
+    if (id == _clientId) return;
+    final mine = all.where((p) => p.clientId == id).toList();
+    setState(() => _clientId = id);
+    // One project for this client: nothing to choose.
+    _pickProject(mine.length == 1 ? mine.first : null);
   }
 
   void _pickProject(TechProject? p) => setState(() {
@@ -133,33 +144,63 @@ class _NewOrderPageState extends ConsumerState<NewOrderPage> {
                 ],
               );
             }
-            // One project: nothing to choose.
-            final project = _project ?? (list.length == 1 ? list.first : null);
-            if (_project == null && project != null) {
+            // Clients of this FT's projects, in name order.
+            final clients = <String, String>{
+              for (final p in list) p.clientId: p.clientName,
+            }.entries.toList()..sort((a, b) => a.value.compareTo(b.value));
+            // One client: nothing to choose.
+            if (_clientId == null && clients.length == 1) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && _project == null) _pickProject(project);
+                if (mounted && _clientId == null) {
+                  _pickClient(clients.first.key, list);
+                }
               });
             }
+            final projectsOfClient = list
+                .where((p) => p.clientId == _clientId)
+                .toList();
             return Form(
               key: _formKey,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
-                  DropdownButtonFormField<TechProject>(
-                    initialValue: project,
+                  DropdownButtonFormField<String>(
+                    initialValue: _clientId,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Project'),
+                    decoration: const InputDecoration(labelText: 'Client'),
                     items: [
-                      for (final p in list)
+                      for (final c in clients)
                         DropdownMenuItem(
-                          value: p,
-                          child: Text(
-                            '${p.name} · ${p.clientName}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          value: c.key,
+                          child: Text(c.value, overflow: TextOverflow.ellipsis),
                         ),
                     ],
-                    onChanged: _pickProject,
+                    onChanged: (id) => _pickClient(id, list),
+                    validator: (v) => v == null ? 'Pick a client' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<TechProject>(
+                    // Rebuilt per client so a stale project never survives a switch.
+                    key: ValueKey('project-$_clientId'),
+                    initialValue: _project,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Project',
+                      hintText: _clientId == null
+                          ? 'Pick a client first'
+                          : null,
+                      helperText: _project?.maxQty == null
+                          ? null
+                          : 'Project max qty: ${_project!.maxQty!.toStringAsFixed(_project!.maxQty! % 1 == 0 ? 0 : 2)} CBM',
+                    ),
+                    items: [
+                      for (final p in projectsOfClient)
+                        DropdownMenuItem(
+                          value: p,
+                          child: Text(p.name, overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                    onChanged: _clientId == null ? null : _pickProject,
                     validator: (v) => v == null ? 'Pick a project' : null,
                   ),
                   const SizedBox(height: 16),

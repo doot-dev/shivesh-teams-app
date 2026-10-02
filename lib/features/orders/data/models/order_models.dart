@@ -277,6 +277,7 @@ class FieldOrder {
     this.comments = const [],
     this.placedBy,
     this.placedByPhone,
+    this.projectMaxQty,
     this.creditBand,
     this.creditUsedPct,
     this.creditPosition,
@@ -304,8 +305,12 @@ class FieldOrder {
 
   /// docs/06: the client's person who placed it from the app — who to call at
   /// site. "Rakesh Pawar (Site Engineer)". Null when the office placed it.
+  /// Who booked it: a client contact, an office user or an FT (2026-10-02).
   final String? placedBy;
   final String? placedByPhone;
+
+  /// Agreed project volume in CBM, display only.
+  final double? projectMaxQty;
 
   /// The human order code (e.g. ORD-2025-0001) — this is what every
   /// `/orders/:orderId` route expects, NOT the cuid primary key.
@@ -373,13 +378,23 @@ class FieldOrder {
     final placerRole =
         (placer?['role'] as Map<String, dynamic>?)?['name'] as String?;
 
+    final creatorName = json['createdByName'] as String?;
+    const creatorKind = {
+      'USER': 'office',
+      'FIELD_TECH': 'field technician',
+      'CLIENT': 'client',
+    };
+
     return FieldOrder(
-      placedBy: placer == null
+      placedBy: placer != null
+          ? '${placer['name']} (${placerRole != null ? '$placerRole, ' : ''}client)'
+          : creatorName == null
           ? null
-          : '${placer['name']}${placerRole != null ? ' ($placerRole)' : ''}',
+          : '$creatorName (${creatorKind[json['createdByType']] ?? 'office'})',
       placedByPhone: placer?['phone'] as String?,
       id: json['orderId'] as String? ?? json['id'] as String? ?? '',
       projectName: project?['projectName'] as String? ?? '',
+      projectMaxQty: (project?['maxQty'] as num?)?.toDouble(),
       clientName: client?['companyName'] as String? ?? '',
       vendor: vendorMap?['companyName'] as String? ?? '',
       product: json['productName'] as String? ?? '',
@@ -433,20 +448,35 @@ class TechProject {
   const TechProject({
     required this.projectId,
     required this.name,
+    required this.clientId,
     required this.clientName,
     required this.address,
     required this.products,
+    this.maxQty,
   });
 
   final String projectId;
   final String name;
+  final String clientId;
   final String clientName;
+  final double? maxQty;
   final String address;
+
+  // Same project after a refresh: the dropdowns keep their selection.
+  @override
+  bool operator ==(Object other) =>
+      other is TechProject && other.projectId == projectId;
+
+  @override
+  int get hashCode => projectId.hashCode;
   final List<({String name, String grade, String unit})> products;
 
   factory TechProject.fromJson(Map<String, dynamic> j) => TechProject(
     projectId: j['projectId'] as String,
     name: j['projectName'] as String? ?? '',
+    clientId:
+        (j['client'] as Map<String, dynamic>?)?['clientId'] as String? ?? '',
+    maxQty: (j['maxQty'] as num?)?.toDouble(),
     clientName:
         (j['client'] as Map<String, dynamic>?)?['companyName'] as String? ?? '',
     address: j['address'] as String? ?? j['projectLocation'] as String? ?? '',

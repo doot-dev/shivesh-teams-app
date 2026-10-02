@@ -8,6 +8,7 @@ import '../../../../core/widgets/app_widgets.dart';
 import '../../../../core/widgets/month_bar.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/orders_providers.dart';
+import '../../../profile/providers/profile_providers.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_search_bar.dart';
 
@@ -56,6 +57,8 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final filter = ref.watch(orderFilterProvider);
+    final canPlaceOrders =
+        ref.watch(technicianProfileProvider).value?.canPlaceOrders ?? false;
     final notifier = ref.read(orderFilterProvider.notifier);
 
     return Scaffold(
@@ -95,12 +98,14 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
                               ),
                             ),
                           ),
-                          // FTs book orders for their projects (2026-09-28).
-                          FilledButton.tonalIcon(
-                            onPressed: () => context.push('/new-order'),
-                            icon: const Icon(Icons.add_rounded, size: 18),
-                            label: const Text('New order'),
-                          ),
+                          // FTs book orders for their projects (2026-09-28),
+                          // only once the office grants it (2026-10-02).
+                          if (canPlaceOrders)
+                            FilledButton.tonalIcon(
+                              onPressed: () => context.push('/new-order'),
+                              icon: const Icon(Icons.add_rounded, size: 18),
+                              label: const Text('New order'),
+                            ),
                         ],
                       ),
                     ),
@@ -252,6 +257,8 @@ class _OrderListView extends ConsumerWidget {
 
   void _refresh(WidgetRef ref) {
     ref.invalidate(searchedOrdersProvider(filter));
+    // Picks up a "place orders" grant from the office without a re-login.
+    ref.invalidate(technicianProfileProvider);
   }
 
   @override

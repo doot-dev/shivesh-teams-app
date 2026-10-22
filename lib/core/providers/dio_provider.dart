@@ -7,7 +7,7 @@ import 'storage_providers.dart';
 
 const _baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://31.97.206.154:3001',
+  defaultValue: 'https://api.shivesh.group',
 );
 
 /// Carries "token rejected" from the Dio interceptor to the auth layer.
